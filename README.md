@@ -1,15 +1,18 @@
-O365 Contact Import
+EWS Contact Sync
 ===================
-O365 Contact Import utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to generate and import a list of contacts for every user in the organization.
-The most common use for this script would be to sync your organization�s Global Access List with the phones of your users.
+Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to sync Global Address List to any user in the directory.
 
+Why would I want to use this?
+iPhones in particular don't sync Office 365 contacts from the Global Address List. 
 
+Thanks to gscales for his work on the EWSContacts powershell module. This script uses a modified version of his module.
+https://github.com/gscales/Powershell-Scripts/tree/master/EWSContacts
 
 Features
 --------
--Pseudo Multi-Threading Using Powershell Jobs Reduces Run-time
--Use a CSV for the Contact List or Fetch Directly From your Organisation�s Global Access List
--Connects Directly to Office 365, Does not Require any Connections Other than Internet Access
+- Automatically generates a list of contacts using the Office 365 Directory
+- You can run the sync for any number of users
+- Specify a custom contact folder that the script will create
 
 Prerequisites
 ------------
