@@ -6,7 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - Automagically import a list of mailboxes from Active Directory
+- Parameterise the deletion of any contacts not in the Global Address List
 - Multi threading
+
+## [0.0.3] - 2019-10-15
+## Added
+- Removes contacts from the target folder that are no longer in the Global Address List. (NOTE: Does not currently delete contacts with no email address)
 
 ## [0.0.2] - 2019-10-15
 ## Added
