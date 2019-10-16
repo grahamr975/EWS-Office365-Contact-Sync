@@ -38,7 +38,7 @@ function New-EXCContactFolder
 		$service = Connect-EXCExchange -MailboxName $MailboxName -Credential $Credential
 		$service.ImpersonatedUserId = New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName);
 		 try {
-			Get-EXCContactFolder -SmptAddress $MailboxName -FolderPath "Contacts\$FolderName" -Service $Service
+			Get-EXCContactFolder -SmptAddress $MailboxName -FolderPath "Contacts\$FolderName" -Service $Service | Out-Null
         } catch {
 		# # If the read fails, create the folder.
 		 	$ContactsFolder = New-Object Microsoft.Exchange.WebServices.Data.ContactsFolder($service);
