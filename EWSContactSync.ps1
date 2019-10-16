@@ -110,7 +110,7 @@ foreach ($Mailbox in $MailboxList) {
     # Remove contacts from the target folder that are no longer in the Global Address List NOTE: This cannot yet remove contacts with no name!
     try {
         # From the user's mailbox, generate a list of contacts who's email is NOT in the Global Address List
-        $MailboxContactsToBeDeleted = $(Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName") | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
+        $MailboxContactsToBeDeleted = $(Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName") | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
         # Remove any contacts that are in this list from the user's mailbox
         foreach ($MailboxContactToDelete in $MailboxContactsToBeDeleted) {
             $MailboxContactEmailAddress = $MailboxContactToDelete.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower()
