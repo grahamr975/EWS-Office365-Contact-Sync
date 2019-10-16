@@ -23,12 +23,6 @@ NOTE: To prevent duplicates, the specified folder is wiped before importing. For
 .PARAMETER LogPath
 Optional, Specifies the path of where the Log files are stored, along with the naming pattern of the log files.
 
-.PARAMETER MaxThreads
-Optional, Specifies how many import jobs can be run at once.
-
-.PARAMETER SleepTimer
-Optional, Amount of time in miliseconds between the execution of each thread.
-
 .EXAMPLE
 
 Command Prompt
@@ -36,7 +30,7 @@ Command Prompt
 C:\> PowerShell.exe -ExecutionPolicy Bypass ^
 -File "%CD%\Multi-Import.ps1" ^
 -CredentialPath "%CD%\Tools\SecureCredential.cred" ^
--FolderName "L&L Contacts" ^
+-FolderName "My Contact Folder" ^
 -LogPath "%CD%\Logs\%mydate%_%mytime%.log" ^
 -MailboxList "testemail@mycompany.com"
 
@@ -113,7 +107,7 @@ foreach ($Mailbox in $MailboxList) {
 
     Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox" -logfile $LogPath
 
-    # Remove contacts from the target folder that are no longer in the Global Address List
+    # Remove contacts from the target folder that are no longer in the Global Address List NOTE: This cannot yet remove contacts with no name!
     try {
         # From the user's mailbox, generate a list of contacts who's email is NOT in the Global Address List
         $MailboxContactsToBeDeleted = $(Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName") | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
