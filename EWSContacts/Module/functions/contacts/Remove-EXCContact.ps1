@@ -65,6 +65,7 @@
 	{
 		#Connect
 		$service = Connect-EXCExchange -MailboxName $MailboxName -Credential $Credentials
+		$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 		if ($useImpersonation.IsPresent)
 		{
 			$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
@@ -72,12 +73,15 @@
 		$folderid = new-object Microsoft.Exchange.WebServices.Data.FolderId([Microsoft.Exchange.WebServices.Data.WellKnownFolderName]::Contacts, $MailboxName)
 		if ($Folder)
 		{
+			$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 			$Contacts = Get-EXCContactFolder -Service $service -FolderPath $Folder -SmptAddress $MailboxName
 		}
 		else
 		{
+			$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 			$Contacts = [Microsoft.Exchange.WebServices.Data.Folder]::Bind($service, $folderid)
 		}
+		$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 		if ($service.URL)
 		{
 			$type = ("System.Collections.Generic.List" + '`' + "1") -as "Type"
@@ -86,6 +90,7 @@
 			$ParentFolderIds.Add($Contacts.Id)
 			$Error.Clear();
 			$cnpsPropset = new-object Microsoft.Exchange.WebServices.Data.PropertySet([Microsoft.Exchange.WebServices.Data.BasePropertySet]::FirstClassProperties)
+			$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 			$ncCol = $service.ResolveName($EmailAddress, $ParentFolderIds, [Microsoft.Exchange.WebServices.Data.ResolveNameSearchLocation]::DirectoryThenContacts, $true, $cnpsPropset);
 			if ($Error.Count -eq 0)
 			{
@@ -99,6 +104,7 @@
 					{
 						if ($Result.Contact -eq $null)
 						{
+							$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 							$contact = [Microsoft.Exchange.WebServices.Data.Contact]::Bind($service, $Result.Mailbox.Id)
 							if ($force)
 							{
@@ -143,6 +149,7 @@
 								{
 									$UserDn = Get-UserDN -Credentials $Credentials -EmailAddress $Result.Mailbox.Address
 									$cnpsPropset = new-object Microsoft.Exchange.WebServices.Data.PropertySet([Microsoft.Exchange.WebServices.Data.BasePropertySet]::FirstClassProperties)
+									$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 									$ncCola = $service.ResolveName($UserDn, $ParentFolderIds, [Microsoft.Exchange.WebServices.Data.ResolveNameSearchLocation]::ContactsOnly, $true, $cnpsPropset);
 									if ($ncCola.Count -eq 0)
 									{
@@ -156,6 +163,7 @@
 										{
 											if (($aResult.Mailbox.Address.ToLower() -eq $EmailAddress.ToLower()) -bor $Partial.IsPresent)
 											{
+												$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 												$contact = [Microsoft.Exchange.WebServices.Data.Contact]::Bind($service, $aResult.Mailbox.Id)
 												if ($force)
 												{
