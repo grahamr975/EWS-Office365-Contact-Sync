@@ -2,26 +2,22 @@ function New-EXCContactFolder
 {
 	<#
 		.SYNOPSIS
-			Creates a folder object with the specified path.
+			Creates a folder object with the specified path if the folder does not already exist.
+
+			*Requries the EWCContacts module: https://github.com/gscales/Powershell-Scripts/tree/master/EWSContacts
 		
-		.DESCRIPTION
-			Creates a folder object with the specified path.
+		.PARAMETER MailboxName
+			The email address of the mailbox that the contact foloder will be created in
 		
-		.PARAMETER FolderPath
-			The path to the folder, relative to the message folder base.
-		
-		.PARAMETER SmptAddress
-			The email address of the mailbox to access
+		.PARAMETER FolderName
+			Name of the contact folder that will be created
 		
 		.PARAMETER Service
-			The established Service connection to use for this connection.
-			Use 'Connect-EXCExchange' in order to establish a connection and obtain such an object.
+			Office 365 Credentials (Admin account with application impersonatoin permissions)
 		
 		.EXAMPLE
-			PS C:\> New-EXCContactFolder -FolderName "MyFolder" -SmptAddress 'peter@example.com' -Service $Service
-	
-			Returns the 'Private' folder within the contacts folder for the mailbox peter@example.com
-	#>
+			PS C:\> New-EXCContactFolder -MailboxName 'john.doe@example.com' -MailboxName "MyFolder" -Credential $Credentials
+		#>
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -57,7 +53,21 @@ function New-EXCContactFolder
     }
 }
 
+
 function Get-GALContacts {
+		<#
+		.SYNOPSIS
+			Uses Office 365 services to generate a list of contacts 
+		
+		.PARAMETER ConnectionUri
+			Used to connect to Office 365, by default this is https://outlook.office365.com/powershell-liveid/.
+		
+		.PARAMETER Credentials
+			Office 365 Admin Credentials
+		
+		.EXAMPLE
+			PS C:\> Get-GALContacts -ConnectionUri 'https://outlook.office365.com/powershell-liveid/' -Credentials $Credentials
+		#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Position = 0, Mandatory = $true)]
@@ -84,7 +94,27 @@ function Get-GALContacts {
 	}
 }
 
+
 Function Write-Log {
+		<#
+		.SYNOPSIS
+			Writes the specified message to the screen. If $logfile is specified, write to the file instead.
+		
+		.PARAMETER Level
+			Indicates the type of message. The options are INFO, WARN, ERROR, FATAL, and DEBUG. Uses INFO by default.
+		
+		.PARAMETER Message
+			Message to write to the screen or the $logfile (if specified)
+
+		.PARAMETER logfile
+			Optional; File path of the file to write the message to.
+
+		.PARAMETER exception
+			Optional; Additional information to include when the script encounters an error. Very useful for troubleshooting.
+		
+		.EXAMPLE
+			PS C:\> Write-Log -Level "INFO" -Message "Successfully executed the script" -logfile $LogFilePath
+	#>
     [CmdletBinding()]
     Param(
     [Parameter(Mandatory=$False)]
