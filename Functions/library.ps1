@@ -135,8 +135,8 @@ Function Write-Log {
 	$exception
 	)
 	
-	if (!(Test-Path $logfile | Out-Null)) {
-		New-Item -ItemType "file" -Path "$logfile" -Force
+	if (!(Test-Path $logfile)) {
+		New-Item -ItemType "file" -Path "$logfile" -Force | Out-Null
 	  }
 
     $Stamp = (Get-Date).toString("yyyy/MM/dd HH:mm:ss")
