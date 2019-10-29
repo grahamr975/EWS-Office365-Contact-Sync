@@ -87,8 +87,9 @@ if ($MailboxList -eq "DIRECTORY") {
 
 
 foreach ($Mailbox in $MailboxList) {
-    
+
     Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox" -logfile $LogPath
+    $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName"
 
     # Check if a contacts folder exists with $FolderName. If not, create it.
     try {
@@ -101,7 +102,7 @@ foreach ($Mailbox in $MailboxList) {
     # NOTE: This cannot yet remove contacts with no email address!
     try {
         # From the user's mailbox, get a list of contacts who's email is NOT in the Global Address List
-        $MailboxContactsToBeDeleted = $(Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName") | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
+        $MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
         # Remove any contacts that are in this list from the user's mailbox
         foreach ($MailboxContactToDelete in $MailboxContactsToBeDeleted) {
             Write-Verbose "Deleting Contact: $($MailboxContactToDelete.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())"
