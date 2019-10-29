@@ -89,7 +89,6 @@ if ($MailboxList -eq "DIRECTORY") {
 foreach ($Mailbox in $MailboxList) {
 
     Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox" -logfile $LogPath
-    $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName"
 
     # Check if a contacts folder exists with $FolderName. If not, create it.
     try {
@@ -97,6 +96,8 @@ foreach ($Mailbox in $MailboxList) {
     } catch {
         Write-Log -Level "FATAL" -Message "Failed verify that $($FolderName) exists for $($Mailbox)" -logfile $LogPath
     }
+
+    $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName"
 
     # Remove obsolete contacts (No longer found in GAL)
     # NOTE: This cannot yet remove contacts with no email address!
