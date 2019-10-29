@@ -48,33 +48,21 @@ Param (
 	[System.IO.FileInfo]$LogPath
 )
 
-$ErrorActionPreference = "Stop"
+#---------------------------------------------------------[Initialisations]--------------------------------------------------------
 
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+$ErrorActionPreference = "Stop"
 
-# Import functions from library.ps1
-try {
-    .".\Functions\library.ps1"
-    Write-Log -Message "Imported library.ps1" -logfile $LogPath
-} catch {
-    Write-Log -Level "FATAL" -Message "Failed to import library.ps1" -logfile $LogPath
-}
+# Dot Source required Function Libraries
+.".\Functions\library.ps1"
 
-# Import the ExchangeContacts Powershell module
-try {
-    Import-Module .\EWSContacts\Module\ExchangeContacts.psm1 -Force
-    Write-Log -Message "Imported ExchangeContacts.psm1" -logfile $LogPath
-} catch {
-    Write-Log -Level "FATAL" -Message "Failed to import ExchangeContacts.psm1" -logfile $LogPath
-}
+# Import Exchange Contacts module
+Import-Module .\EWSContacts\Module\ExchangeContacts.psm1 -Force
 
-# Import Office 365 administriator credentials (This account also needs impersonation permissions)
-try {
-    $Credential = Import-CliXml -Path $CredentialPath
-    Write-Log -Message "Imported Office 365 Credentials from $($CredentialPath)" -logfile $LogPath
-} catch {
-    Write-Log -Level "FATAL" -Message "Failed to load CliXml credentials from $($CredentialPath)" -logfile $LogPath
-}
+#-----------------------------------------------------------[Fetch Data]------------------------------------------------------------
+
+# Import Office 365 Administrator credentials
+$Credential = Import-CliXml -Path $CredentialPath
 
 # Fetch list of Global Address List contacts using Office 365 Powershell
 try {
@@ -84,7 +72,7 @@ try {
     Write-Log -Level "FATAL" -Message "Failed to fetch Office 365 Global Address List contacts" -logfile $LogPath
 }
 
-# If 'DIRECTORY' is used for $MailboxList, fetch all Mailboxes from Office 365 directory
+# If 'DIRECTORY' is used for $MailboxList, fetch all Mailboxes from the administrator account's Office 365 directory
 if ($MailboxList -eq "DIRECTORY") {
     try {
         # TO DO: ADD MAILBOX FETCH FEATURE (IT WILL REPLACE THE BELOW LINE)
@@ -96,6 +84,9 @@ if ($MailboxList -eq "DIRECTORY") {
     
 }
 
+#-----------------------------------------------------------[Execution]------------------------------------------------------------
+
+
 foreach ($Mailbox in $MailboxList) {
     # Check if the contacts folder exists with $FolderName. If not, create it.
     try {
@@ -104,30 +95,28 @@ foreach ($Mailbox in $MailboxList) {
     } catch {
         Write-Log -Level "FATAL" -Message "Failed verify that $($FolderName) exists for $($Mailbox)" -logfile $LogPath
     }
-
     Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox" -logfile $LogPath
 
-    # # Remove contacts from the target folder that are no longer in the Global Address List NOTE: This cannot yet remove contacts with no name!
-    # try {
-    #     # From the user's mailbox, generate a list of contacts who's email is NOT in the Global Address List
-    #     $MailboxContactsToBeDeleted = $(Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName") | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address)}
-    #     # Remove any contacts that are in this list from the user's mailbox
-    #     foreach ($MailboxContactToDelete in $MailboxContactsToBeDeleted) {
-    #         $MailboxContactEmailAddress = $MailboxContactToDelete.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower()
-    #         Remove-EXCContact -MailboxName $Mailbox -EmailAddress $MailboxContactEmailAddress -Credentials $Credential -Folder "Contacts\$FolderName" -Force
-    #     }
-    #     Write-Log -Message "Removed all obsolete contacts from $($Mailbox)'s mailbox" -logfile $LogPath -logfile $LogPath
-    # } catch {
-    #     Write-Log -Level "ERROR" -Message "Failed to remove all obsolete contacts from $($Mailbox)'s mailbox"-logfile $LogPath
-    # }
+    # Remove obsolete contacts (No longer found in GAL)
+    # NOTE: This cannot yet remove contacts with no email address!
+    try {
+        # From the user's mailbox, generate a list of contacts who's email is NOT in the Global Address List
+        $MailboxContactsToBeDeleted = $(Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName") | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
+        # Remove any contacts that are in this list from the user's mailbox
+        foreach ($MailboxContactToDelete in $MailboxContactsToBeDeleted) {
+            $MailboxContactToDelete.Delete([Microsoft.Exchange.WebServices.Data.DeleteMode]::SoftDelete)
+        }
+        # Write-Log -Message "Removed all obsolete contacts from $($Mailbox)'s mailbox" -logfile $LogPath
+    } catch {
+        Write-Log -Level "ERROR" -Message "Failed to remove all obsolete contacts from $($Mailbox)'s mailbox"-logfile $LogPath -exception $_.Exception.Message
+    }
     
-    
-    # Update & Add Contacts
+    # Update/add contacts
     foreach ($GALContact in $GALContacts) {
         if ($null -ne $GALContact.WindowsEmailAddress) {
             Write-Output $GALContact.WindowsEmailAddress
             try {
-                if ($null -eq $GALContact.FirstName) {
+                if ($null -eq $GALContact.FirstName -or "" -eq $GALContact.FirstName) {
                     # Try to update the contact if it already exists
                     $isContactFound = $(Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force)
                     # If the contact does not yet exist, create a new contact
