@@ -53,6 +53,7 @@ Param (
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
+$global:LogPath = $LogPath
 
 # Dot Source required Function Libraries
 .".\Functions\library.ps1"
@@ -60,10 +61,10 @@ $VerbosePreference = "Continue"
 # Import Exchange Contacts module
 Import-Module .\EWSContacts\Module\ExchangeContacts.psm1 -Force
 
-#-----------------------------------------------------------[Fetch Data]------------------------------------------------------------
-
 # Import Office 365 Administrator credentials
 $Credential = Import-CliXml -Path $CredentialPath
+
+#-----------------------------------------------------------[Fetch Contact Lists]------------------------------------------------------------
 
 # Fetch list of Global Address List contacts using Office 365 Powershell
 try {
@@ -85,7 +86,6 @@ if ($MailboxList -eq "DIRECTORY") {
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-
 foreach ($Mailbox in $MailboxList) {
 
     Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox" -logfile $LogPath
@@ -97,13 +97,16 @@ foreach ($Mailbox in $MailboxList) {
         Write-Log -Level "FATAL" -Message "Failed verify that $($FolderName) exists for $($Mailbox)" -logfile $LogPath
     }
 
-    $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName"
+    $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName" | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null}
+    $MailboxEmailList = Get-EmailAddressFromContact -Contact $MailboxContacts    
+    $MailboxContactsToBeCreated = $GALContacts | Where-Object {!$MailboxEmailList.Contains($_.WindowsEmailAddress)}
+    $MailboxContactsToBeUpdated = $GALContacts | Where-Object {$MailboxEmailList.Contains($_.WindowsEmailAddress)}
+    pause
+    $MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
 
     # Remove obsolete contacts (No longer found in GAL)
     # NOTE: This cannot yet remove contacts with no email address!
     try {
-        # From the user's mailbox, get a list of contacts who's email is NOT in the Global Address List
-        $MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null} | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
         # Remove any contacts that are in this list from the user's mailbox
         foreach ($MailboxContactToDelete in $MailboxContactsToBeDeleted) {
             Write-Verbose "Deleting Contact: $($MailboxContactToDelete.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())"
