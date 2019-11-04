@@ -99,12 +99,11 @@ foreach ($Mailbox in $MailboxList) {
 
     $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName" | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null}
     $MailboxEmailList = Get-EmailAddressFromContact -Contact $MailboxContacts    
+    $MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
     $MailboxContactsToBeCreated = $GALContacts | Where-Object {!$MailboxEmailList.Contains($_.WindowsEmailAddress)}
     $MailboxContactsToBeUpdated = $GALContacts | Where-Object {$MailboxEmailList.Contains($_.WindowsEmailAddress)}
-    pause
-    $MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
 
-    # Remove obsolete contacts (No longer found in GAL)
+    # Delete obsolete contacts (No longer found in GAL)
     # NOTE: This cannot yet remove contacts with no email address!
     try {
         # Remove any contacts that are in this list from the user's mailbox
@@ -116,26 +115,33 @@ foreach ($Mailbox in $MailboxList) {
     } catch {
         Write-Log -Level "ERROR" -Message "Failed to remove all obsolete contacts from $($Mailbox)'s mailbox"-logfile $LogPath -exception $_.Exception.Message
     }
-    
-    # Update/add contacts
-    foreach ($GALContact in $GALContacts) {
+
+    # Update Contacts
+    foreach ($GALContact in $MailboxContactsToBeUpdated) {
         if ($null -ne $GALContact.WindowsEmailAddress) {
-            Write-Verbose "Syncing Contact: $($GALContact.WindowsEmailAddress)"
+            Write-Verbose "Updating Contact: $($GALContact.WindowsEmailAddress)"
             try {
                 if ($null -eq $GALContact.FirstName -or "" -eq $GALContact.FirstName) {
                     # Try to update the contact if it already exists
-                    $isContactFound = $(Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force)
-                    # If the contact does not yet exist, create a new contact
-                    if ($isContactFound -eq $false) {
-                        New-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation
-                    }
+                    Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force
                 } else {
-                    # Try to update the contact if it already exists
-                    $isContactFound = $(Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force)
-                    # If the contact does not yet exist, create a new contact
-                    if ($isContactFound -eq $false) {
-                        New-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation
-                    }
+                    Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force
+                }
+            } catch {
+                Write-Log -Level "ERROR" -Message "Failed to sync $($GALContact.WindowsEmailAddress) contact to $($Mailbox)'s mailbox" -logfile $LogPath -exception $_.Exception.Message
+            }
+        }
+    }
+    
+    # Create contacts
+    foreach ($GALContact in $MailboxContactsToBeCreated) {
+        if ($null -ne $GALContact.WindowsEmailAddress) {
+            Write-Verbose "Adding Contact: $($GALContact.WindowsEmailAddress)"
+            try {
+                if ($null -eq $GALContact.FirstName -or "" -eq $GALContact.FirstName) {
+                    New-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation
+                } else {
+                    New-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation
                 }
             } catch {
                 Write-Log -Level "ERROR" -Message "Failed to sync $($GALContact.WindowsEmailAddress) contact to $($Mailbox)'s mailbox" -logfile $LogPath -exception $_.Exception.Message
