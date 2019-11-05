@@ -108,7 +108,6 @@ foreach ($Mailbox in $MailboxList) {
     # Delete any obsolete contacts (No longer found in the Global Address List)
     # NOTE: This cannot yet remove contacts with no email address!
     try {
-        # Remove any contacts that are in this list from the user's mailbox
         foreach ($MailboxContactToDelete in $MailboxContactsToBeDeleted) {
             Write-Verbose "Deleting Contact: $($MailboxContactToDelete.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())"
             $MailboxContactToDelete.Delete([Microsoft.Exchange.WebServices.Data.DeleteMode]::SoftDelete)
@@ -119,12 +118,10 @@ foreach ($Mailbox in $MailboxList) {
     }
     #   ------[UPDATE]------
     foreach ($GALContact in $MailboxContactsToBeUpdated) {
-        # If the identical contact already exists in the user's mailbox, don't made any changes to it.
-        $IdenticalMailboxContact = $MailboxContacts | Where-Object {(($_.GivenName -eq $GALContact.FirstName) -or ($GALContact.FirstName -eq $null)) -and (($_.Surname -eq $GALContact.LastName) -or ($GALContact.LastName -eq $null)) -and ($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].address -eq $GALContact.WindowsEmailAddress)}
-        if ($null -eq $IdenticalMailboxContact) {
-            Write-Verbose $IdenticalMailboxContact
-            Write-Verbose $GALContact
+        # Search for a matching contact. If it already exists in the user's mailbox, don't made any changes to it since they aren't needed.
+        if ($null -eq $($MailboxContacts | Where-Object {(($_.GivenName -eq $GALContact.FirstName) -or ("" -eq $GALContact.FirstName)) -and (($_.Surname -eq $GALContact.LastName) -or ("" -eq $GALContact.LastName)) -and ($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].address -eq $GALContact.WindowsEmailAddress) -and ($GALContact.Company -eq $_.CompanyName -or $GALContact.Company -eq "") -and ($GALContact.Department -eq $_.Department -or $GALContact.Department -eq "") -and (($_.DisplayName -eq $GALContact.DisplayName) -or ($GALContact.DisplayName -eq "")) -and ($GALContact.Title -eq $_.JobTitle -or $GALContact.Title -eq "") -and ($GALContact.Phone -eq $_.PhoneNumbers[[Microsoft.Exchange.WebServices.Data.PhoneNumberKey]::BusinessPhone] -or $GALContact.Phone -eq "") -and ($GALContact.MobilePhone -eq $_.PhoneNumbers[[Microsoft.Exchange.WebServices.Data.PhoneNumberKey]::MobilePhone] -or $GALContact.MobilePhone -eq "")})) {
             if ($null -ne $GALContact.WindowsEmailAddress) {
+                Write-Verbose $GALContact
                 Write-Verbose "Updating Contact: $($GALContact.WindowsEmailAddress)"
                 try {   # Try to update the contact if it already exists
                     Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force
