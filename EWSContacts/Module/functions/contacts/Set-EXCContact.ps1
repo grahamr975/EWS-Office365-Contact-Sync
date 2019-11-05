@@ -390,6 +390,5 @@
 				}
 			}
 		}
-		return $isContactFound
 	}
 }
