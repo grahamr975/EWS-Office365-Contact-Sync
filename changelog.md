@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi threading
 - Create switch parameter for wether to import all contacts, or only user contacts
 
+## [1.0.0] - 2019-11-2019
+## Changed
+- Read the user's mailbox once for all contacts rather than for every contact when determining if a contact needs to be deleted, updated, or added.
+- Only update a contact if it needs to be updated. If both the new and old contact are exact matches, skip to the next contact.
+
 ## [0.0.3] - 2019-10-15
 ## Added
 - Removes contacts from the target folder that are no longer in the Global Address List. (NOTE: Does not currently delete contacts with no email address)
