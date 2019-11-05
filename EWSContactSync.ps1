@@ -99,7 +99,7 @@ foreach ($Mailbox in $MailboxList) {
     $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName" | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null}
     $MailboxEmailList = Get-EmailAddressFromContact -Contact $MailboxContacts
 
-    # Determine if each contact needs to be deleted, created, or updated.
+    # Determine if each contact needs to be deleted, created, or updated
     $MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$GALContacts.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
     $MailboxContactsToBeCreated = $GALContacts | Where-Object {!$MailboxEmailList.Contains($_.WindowsEmailAddress)}
     $MailboxContactsToBeUpdated = $GALContacts | Where-Object {$MailboxEmailList.Contains($_.WindowsEmailAddress)}
@@ -119,14 +119,18 @@ foreach ($Mailbox in $MailboxList) {
     }
     #   ------[UPDATE]------
     foreach ($GALContact in $MailboxContactsToBeUpdated) {
-        #if ($($MailboxContacts | Where-Object ($_.GivenName -eq $GALContact.
-
-        if ($null -ne $GALContact.WindowsEmailAddress) {
-            Write-Verbose "Updating Contact: $($GALContact.WindowsEmailAddress)"
-            try {   # Try to update the contact if it already exists
-                Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force
-            } catch {
-                Write-Log -Level "ERROR" -Message "Failed to sync $($GALContact.WindowsEmailAddress) contact to $($Mailbox)'s mailbox" -logfile $LogPath -exception $_.Exception.Message
+        # If the identical contact already exists in the user's mailbox, don't made any changes to it.
+        $IdenticalMailboxContact = $MailboxContacts | Where-Object {(($_.GivenName -eq $GALContact.FirstName) -or ($GALContact.FirstName -eq $null)) -and (($_.Surname -eq $GALContact.LastName) -or ($GALContact.LastName -eq $null)) -and ($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].address -eq $GALContact.WindowsEmailAddress)}
+        if ($null -eq $IdenticalMailboxContact) {
+            Write-Verbose $IdenticalMailboxContact
+            Write-Verbose $GALContact
+            if ($null -ne $GALContact.WindowsEmailAddress) {
+                Write-Verbose "Updating Contact: $($GALContact.WindowsEmailAddress)"
+                try {   # Try to update the contact if it already exists
+                    Set-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation -force
+                } catch {
+                    Write-Log -Level "ERROR" -Message "Failed to sync $($GALContact.WindowsEmailAddress) contact to $($Mailbox)'s mailbox" -logfile $LogPath -exception $_.Exception.Message
+                }
             }
         }
     }
