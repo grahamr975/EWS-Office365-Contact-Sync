@@ -42,9 +42,12 @@ https://www.microsoft.com/en-us/download/details.aspx?id=42951
 
 Param (
     [Parameter(Mandatory=$True)]
-	[System.IO.FileInfo]$CredentialPath,
-	[String]$FolderName,
-	[String[]]$MailboxList,
+    [System.IO.FileInfo]$CredentialPath,
+    [Parameter(Mandatory=$True)]
+    [String]$FolderName,
+    [Parameter(Mandatory=$True)]
+    [String[]]$MailboxList,
+    [Parameter(Mandatory=$False)]
 	[System.IO.FileInfo]$LogPath
 )
 
@@ -133,7 +136,7 @@ foreach ($Mailbox in $MailboxList) {
             try {
                 New-EXCContact -MailboxName $Mailbox -DisplayName $GALContact.DisplayName -FirstName $GALContact.FirstName -LastName $GALContact.LastName -EmailAddress $GALContact.WindowsEmailAddress -CompanyName $GALContact.Company -Credentials $Credential -Department $GALContact.Department -BusinssPhone $GALContact.Phone -MobilePhone $GALContact.MobilePhone -JobTitle $GALContact.Title -Folder "Contacts\$FolderName" -useImpersonation
             } catch {
-                Write-Log -Level "ERROR" -Message "Failed to sync $($GALContact.WindowsEmailAddress) contact to $($Mailbox)'s mailbox" -logfile $LogPath -exception $_.Exception.Message
+                Write-Log -Level "ERROR" -Message "Failed to create $($GALContact.WindowsEmailAddress) contact in $($Mailbox)'s mailbox" -logfile $LogPath -exception $_.Exception.Message
             }
         }
     }

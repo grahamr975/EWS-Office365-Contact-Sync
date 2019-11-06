@@ -204,7 +204,7 @@ Function Write-Log {
 	$exception
 	)
 	
-	if (!(Test-Path $logfile)) {
+	if ($logfile -and !(Test-Path $logfile)) {
 		New-Item -ItemType "file" -Path "$logfile" -Force | Out-Null
 	  }
 
