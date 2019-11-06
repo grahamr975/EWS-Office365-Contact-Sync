@@ -80,11 +80,8 @@ foreach ($Mailbox in $MailboxList) {
     Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox" -logfile $LogPath
 
     # Check if a contacts folder exists with $FolderName. If not, create it.
-    try {
-        New-EXCContactFolder -MailboxName $Mailbox -FolderName "$FolderName" -Credential $Credential
-    } catch {
-        Write-Log -Level "FATAL" -Message "Failed verify that $($FolderName) exists for $($Mailbox)" -logfile $LogPath
-    }
+    New-EXCContactFolder -MailboxName $Mailbox -FolderName "$FolderName" -Credential $Credential
+    
 
     # Fetch contacts from the user's mailbox
     $MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName" | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address -ne $null}
