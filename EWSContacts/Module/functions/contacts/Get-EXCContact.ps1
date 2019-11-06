@@ -160,7 +160,7 @@
 										else
 										{
 											$ResultWritten = $true
-											Write-Host ("Number of matching Contacts Found " + $ncCola.Count)
+											Write-Verbose ("Number of matching Contacts Found " + $ncCola.Count)
 											foreach ($aResult in $ncCola)
 											{
 												$Contact = [Microsoft.Exchange.WebServices.Data.Contact]::Bind($service, $aResult.Mailbox.Id)
