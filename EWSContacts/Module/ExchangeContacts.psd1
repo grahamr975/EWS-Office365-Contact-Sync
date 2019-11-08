@@ -71,8 +71,11 @@
 		'Get-EXCContactFolder',
 		'Get-EXCContactGroup',
 		'Get-EXCContacts',
+		'Get-GALContacts.',
 		'Get-EXCAllContactFolders',
 		'Get-EXCContactGroups',
+		'Get-EmailAddressFromContact',
+		'Get-Mailboxes',
 		'New-EXCContact',
 		'New-EXCContactFolder',
 		'New-EXCContactGroup',
@@ -81,7 +84,9 @@
 		'Search-EXCContactsForCCNumbers',
 		'Search-EXCAllContactFolders',
 		'Search-EXCAllContactGroups',
-		'Set-EXCContact'
+		'Set-EXCContact',
+		'Sync-ContactList',
+		'Write-Log'
 	)
 	
 	# Cmdlets to export from this module

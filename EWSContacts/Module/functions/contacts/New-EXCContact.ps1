@@ -115,12 +115,14 @@
 		$DisplayName,
 		
 		[Parameter(Position = 2, Mandatory = $true)]
+		[AllowEmptyString()]
 		[AllowNull()]
 		[string]
 		$FirstName,
 		
 		[Parameter(Position = 3, Mandatory = $true)]
 		[AllowNull()]
+		[AllowEmptyString()]
 		[string]
 		$LastName,
 		
