@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi threading
 - Create switch parameter for wether to import all contacts, or only user contacts
 
-## [1.0.2] - 2019-11-2019
+## [1.0.2] - 2019-11-11
+## Changed
+- Changed the logging method to transcript
 ## Fixed
 - Re-did the previous changes to fix an unknown parameter error
 
