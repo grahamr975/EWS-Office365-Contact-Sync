@@ -55,8 +55,7 @@ Param (
 
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 $Global:LogPath = $LogPath
-$SleepTimer = 500
-$MaxThreads = 5
+
 $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
 
@@ -82,33 +81,35 @@ if ($MailboxList -eq "DIRECTORY") {
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
 
-# foreach ($Mailbox in $MailboxList) {
-#     Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts
+foreach ($Mailbox in $MailboxList) {
+    Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts
+}
+
+# $SleepTimer = 500
+# $MaxThreads = 5
+# ForEach ($Mailbox in $MailboxList) {
+
+#     While ($(Get-Job -state running).count -ge $MaxThreads){
+#         Write-Progress  -Activity "Syncing Contacts for Office 365 Mailbox" -Status "Waiting for Contact Sync to Finish..." -CurrentOperation "$i Contact Sync Jobs created - $($(Get-Job -state running).count) jobs running" -PercentComplete ($i / $MailboxList.count * 100)
+#         Start-Sleep -Milliseconds $SleepTimer
+#     }
+
+# 	$i++
+#     Start-Job -ScriptBlock ${function:Sync-ContactList} -ArgumentList $Mailbox, $Credential, $FolderName, $GALContacts -Name $Mailbox  | Out-Null
+#     Write-Progress  -Activity "Syncing Contacts for Office 365 Mailbox" -Status "Starting Threads" -CurrentOperation "$i Contact Sync started - $($(Get-Job -state running).count) jobs running" -PercentComplete ($i / $MailboxList.count * 100)
 # }
 
-ForEach ($Mailbox in $MailboxList) {
+# # Show Progress on All Running Threads
+# While ($(Get-Job -State Running).count -gt 0){
+#     $ThreadsStillRunning = ""
+#     ForEach ($System  in $(Get-Job -state running)){$ThreadsStillRunning += ", $($System.name)"}
+#     $ThreadsStillRunning = $ThreadsStillRunning.Substring(2)
+#     Write-Progress  -Activity "Syncing Contacts for Office 365 Mailbox" -Status "$($(Get-Job -State Running).count) Sync(s) remaining" -CurrentOperation "$ThreadsStillRunning" -PercentComplete ($(Get-Job -State Completed).count / $(Get-Job).count * 100)
+#     Start-Sleep -Milliseconds $SleepTimer
+# }
 
-    While ($(Get-Job -state running).count -ge $MaxThreads){
-        Write-Progress  -Activity "Syncing Contacts for Office 365 Mailbox" -Status "Waiting for Contact Sync to Finish..." -CurrentOperation "$i Contact Sync Jobs created - $($(Get-Job -state running).count) jobs running" -PercentComplete ($i / $MailboxList.count * 100)
-        Start-Sleep -Milliseconds $SleepTimer
-    }
-
-	$i++
-    Start-Job -ScriptBlock ${function:Sync-ContactList} -ArgumentList $Mailbox, $Credential, $FolderName, $GALContacts -Name $Mailbox  | Out-Null
-    Write-Progress  -Activity "Syncing Contacts for Office 365 Mailbox" -Status "Starting Threads" -CurrentOperation "$i Contact Sync started - $($(Get-Job -state running).count) jobs running" -PercentComplete ($i / $MailboxList.count * 100)
-}
-
-# Show Progress on All Running Threads
-While ($(Get-Job -State Running).count -gt 0){
-    $ThreadsStillRunning = ""
-    ForEach ($System  in $(Get-Job -state running)){$ThreadsStillRunning += ", $($System.name)"}
-    $ThreadsStillRunning = $ThreadsStillRunning.Substring(2)
-    Write-Progress  -Activity "Syncing Contacts for Office 365 Mailbox" -Status "$($(Get-Job -State Running).count) Sync(s) remaining" -CurrentOperation "$ThreadsStillRunning" -PercentComplete ($(Get-Job -State Completed).count / $(Get-Job).count * 100)
-    Start-Sleep -Milliseconds $SleepTimer
-}
-
-ForEach($Job in Get-Job) {
-	$JobResults = $(Receive-Job $Job)
-        #Add-content $LogPath -value $JobResults
-        Write-Log -Message $JobResults -LogPath $LogPath
-}
+# ForEach($Job in Get-Job) {
+# 	$JobResults = $(Receive-Job $Job)
+#         #Add-content $LogPath -value $JobResults
+#         Write-Log -Message $JobResults -LogPath $LogPath
+# }
