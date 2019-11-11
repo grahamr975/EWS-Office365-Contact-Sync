@@ -45,16 +45,15 @@ Param (
     [System.IO.FileInfo]$CredentialPath,
     [Parameter(Mandatory=$True)]
     [String]$FolderName,
-    [Parameter(Mandatory=$True)]
-    [String[]]$MailboxList,
     [Parameter(Mandatory=$False)]
-	[System.IO.FileInfo]$LogPath
+	[String]$LogPath,
+    [Parameter(Mandatory=$True)]
+    [String[]]$MailboxList
 )
 
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
 
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-
 $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
 
