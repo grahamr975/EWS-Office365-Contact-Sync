@@ -5,9 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] (To do list)
-- Automagically import a list of mailboxes from Active Directory
 - Multi threading
 - Create switch parameter for wether to import all contacts, or only user contacts
+
+## [1.0.2] - 2019-11-2019
+## Fixed
+- Re-did the previous changes to fix an unknown parameter error
+
+## [1.0.1] - 2019-11-8
+## Added
+- When "DIRECTORY" is specified for the MailboxList, now every user in the directory will be included
+## Changed
+- Moved the main functionality of the script into a function called Sync-ContactList
+- Integrated all custom functions (library.ps1) into the EWSContacts Module
 
 ## [1.0.0] - 2019-11-2019
 ## Changed
