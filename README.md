@@ -2,7 +2,7 @@ EWS Contact Sync
 ===================
 Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to sync your Global Address List to any/every user in the directory.
 
-**Why would I want to use this?** iPhone/Android devices don't currently support offline Global Address List synchronization. By loading the Global Address List contacts into the user's mailbox, you can circumvent this limitation.
+**Why would I want to use this?** iPhone/Android devices don't currently support offline Global Address List synchronization. By loading the Global Address List contacts into a folder within user's mailbox, you can circumvent this limitation.
 
 Features
 --------
