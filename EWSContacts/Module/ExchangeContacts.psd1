@@ -82,7 +82,8 @@
 		'Search-EXCContactsForCCNumbers',
 		'Search-EXCAllContactFolders',
 		'Search-EXCAllContactGroups',
-		'Set-EXCContact'
+		'Set-EXCContact',
+		'Sync-ContactList'
 	)
 	
 	# Cmdlets to export from this module
