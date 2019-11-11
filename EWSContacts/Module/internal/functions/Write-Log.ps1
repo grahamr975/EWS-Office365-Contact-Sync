@@ -7,7 +7,7 @@ Function Write-Log {
 		Indicates the type of message. The options are INFO, WARN, ERROR, FATAL, and DEBUG. Uses INFO by default.
 	
 	.PARAMETER Message
-		Message to write to the screen or the $logfile (if specified)
+		Message to write t o the screen or the $logfile (if specified)
 
 	.PARAMETER logfile
 		Optional; File path of the file to write the message to.
