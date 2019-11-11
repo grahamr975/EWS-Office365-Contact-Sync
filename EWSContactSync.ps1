@@ -54,13 +54,9 @@ Param (
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
 
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-$Global:LogPath = $LogPath
 
 $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
-
-# Dot Source required Function Libraries
-.".\Functions\library.ps1"
 
 # Import Exchange Contacts module
 Import-Module .\EWSContacts\Module\ExchangeContacts.psm1 -Force
@@ -75,7 +71,7 @@ $GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powe
 
 # If 'DIRECTORY' is used for $MailboxList, fetch all Mailboxes from the administrator account's Office 365 directory
 if ($MailboxList -eq "DIRECTORY") {
-    $MailboxList = Get-Mailboxes -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential | Select-Object PrimarySMTPAddress
+    $MailboxList = Get-Mailboxes -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential
 }
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
