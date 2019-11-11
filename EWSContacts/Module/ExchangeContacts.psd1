@@ -61,7 +61,7 @@
 	NestedModules = @()
 	
 	# Functions to export from this module
-	FunctionsToExport	    = @(
+	FunctionsToExport = @(
 		'Connect-EXCExchange',
 		'Copy-EXCContactGalToMailbox',
 		'Export-EXCContact',

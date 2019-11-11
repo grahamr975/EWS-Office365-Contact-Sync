@@ -54,6 +54,7 @@ Param (
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
 
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
 $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
 

@@ -60,7 +60,11 @@ process {
 	# NOTE: This cannot yet remove contacts with no email address!
 	try {
 		foreach ($Contact in $MailboxContactsToBeDeleted) {
+<<<<<<< HEAD
 			Write-Verbose "Deleting Contact: $($Contact.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())"
+=======
+			Write-Verbose "Deleting Contact: $($Contact.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())" for $($Mailbox)
+>>>>>>> 90ca29f2a31ed90da98c339121abf2f941333236
 			$Contact.Delete([Microsoft.Exchange.WebServices.Data.DeleteMode]::SoftDelete)
 		}
 	} catch {
@@ -73,7 +77,11 @@ process {
 		# Search for a identical contact. If the identical contact already exists in the user's mailbox, don't made any changes to it since they aren't needed.
 		if ($null -eq $($MailboxContacts | Where-Object {(($_.GivenName -eq $Contact.FirstName) -or ("" -eq $Contact.FirstName)) -and (($_.Surname -eq $Contact.LastName) -or ("" -eq $Contact.LastName)) -and ($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].address -eq $Contact.WindowsEmailAddress) -and ($Contact.Company -eq $_.CompanyName -or $Contact.Company -eq "") -and ($Contact.Department -eq $_.Department -or $Contact.Department -eq "") -and (($_.DisplayName -eq $Contact.DisplayName) -or ($Contact.DisplayName -eq "")) -and ($Contact.Title -eq $_.JobTitle -or $Contact.Title -eq "") -and ($Contact.Phone -eq $_.PhoneNumbers[[Microsoft.Exchange.WebServices.Data.PhoneNumberKey]::BusinessPhone] -or $Contact.Phone -eq "") -and ($Contact.MobilePhone -eq $_.PhoneNumbers[[Microsoft.Exchange.WebServices.Data.PhoneNumberKey]::MobilePhone] -or $Contact.MobilePhone -eq "")})) {
 			if ($null -ne $Contact.WindowsEmailAddress) {
+<<<<<<< HEAD
 				Write-Verbose "Updating Contact: $($Contact.WindowsEmailAddress)"
+=======
+				Write-Verbose "Updating Contact: $($Contact.WindowsEmailAddress)" for $($Mailbox)
+>>>>>>> 90ca29f2a31ed90da98c339121abf2f941333236
 				try {
 					Set-EXCContact -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Credentials $Credential -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder "Contacts\$FolderName" -useImpersonation -force
 				} catch {
@@ -87,7 +95,11 @@ process {
 	#
 	foreach ($Contact in $MailboxContactsToBeCreated) {
 		if ($null -ne $Contact.WindowsEmailAddress) {
+<<<<<<< HEAD
 			Write-Verbose "Creating Contact: $($Contact.WindowsEmailAddress)"
+=======
+			Write-Verbose "Creating Contact: $($Contact.WindowsEmailAddress)" for $($Mailbox)
+>>>>>>> 90ca29f2a31ed90da98c339121abf2f941333236
 			try {
 				New-EXCContact -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Credentials $Credential -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder "Contacts\$FolderName" -useImpersonation
 			} catch {
