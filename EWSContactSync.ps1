@@ -58,6 +58,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
 
+Start-Transcript -OutputDirectory $LogPath -NoClobber
+
 # Import Exchange Contacts module
 Import-Module .\EWSContacts\Module\ExchangeContacts.psm1 -Force
 
@@ -76,10 +78,11 @@ if ($MailboxList -eq "DIRECTORY") {
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-
 foreach ($Mailbox in $MailboxList) {
     Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts
 }
+
+Stop-Transcript
 
 # $SleepTimer = 500
 # $MaxThreads = 5
