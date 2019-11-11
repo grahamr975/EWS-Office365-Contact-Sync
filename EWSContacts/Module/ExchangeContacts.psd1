@@ -73,6 +73,7 @@
 		'Get-EXCContacts',
 		'Get-EXCAllContactFolders',
 		'Get-EXCContactGroups',
+		'Get-GALContacts',
 		'New-EXCContact',
 		'New-EXCContactFolder',
 		'New-EXCContactGroup',
