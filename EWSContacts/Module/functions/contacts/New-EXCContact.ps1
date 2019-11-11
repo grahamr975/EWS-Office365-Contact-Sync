@@ -123,6 +123,7 @@
 		[Parameter(Position = 3, Mandatory = $true)]
 		[AllowEmptyString()]
 		[AllowNull()]
+		[AllowEmptyString()]
 		[string]
 		$LastName,
 		

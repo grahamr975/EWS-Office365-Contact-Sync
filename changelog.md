@@ -8,10 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi threading
 - Create switch parameter for wether to import all contacts, or only user contacts
 
+<<<<<<< HEAD
 ## [1.0.2] - 2019-11-2019
 ## Fixed
 - Re-did the previous changes to fix an unknown parameter error
 
+=======
+>>>>>>> 90ca29f2a31ed90da98c339121abf2f941333236
 ## [1.0.1] - 2019-11-8
 ## Added
 - When "DIRECTORY" is specified for the MailboxList, now every user in the directory will be included
@@ -19,7 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved the main functionality of the script into a function called Sync-ContactList
 - Integrated all custom functions (library.ps1) into the EWSContacts Module
 
+<<<<<<< HEAD
 ## [1.0.0] - 2019-11-2019
+=======
+## [1.0.0] - 2019-11-3
+>>>>>>> 90ca29f2a31ed90da98c339121abf2f941333236
 ## Changed
 - Read the user's mailbox once for all contacts rather than for every contact when determining if a contact needs to be deleted, updated, or added.
 - Only update a contact if it needs to be updated. If both the new and old contact are exact matches, skip to the next contact.
