@@ -44,15 +44,22 @@ process {
 
 	# Fetch contacts from the user's mailbox
 	$MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName" | Where-Object {$null -ne $_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address}
-	$MailboxEmailList = Get-EmailAddressFromContact -Contact $MailboxContacts
-
-	# For each contact, determine if it needs to be deleted, updated, or created
-	# Delete = Any contact in the user's mailbox that does not have an email address matching any contact in the Global Address List
-	# Update = Any contact in the user's mailbox that has a matching email address with a contact in the Global Address List
-	# Create = Any contact in the Global Address List does not does not have a matching email with a contact in the user's mailbox
-	$MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$ContactList.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
-	$MailboxContactsToBeUpdated = $ContactList | Where-Object {$MailboxEmailList.Contains($_.WindowsEmailAddress)}
-	$MailboxContactsToBeCreated = $ContactList | Where-Object {!$MailboxEmailList.Contains($_.WindowsEmailAddress)}
+	
+	# If the user has no contacts, add them all in.
+	if ($null -eq $MailboxContacts) {
+		$MailboxContactsToBeDeleted = $null
+		$MailboxContactsToBeUpdated = $null
+		$MailboxContactsToBeCreated = $ContactList
+	} else {
+		$MailboxEmailList = Get-EmailAddressFromContact -Contact $MailboxContacts
+		# For each contact, determine if it needs to be deleted, updated, or created
+		# Delete = Any contact in the user's mailbox that does not have an email address matching any contact in the Global Address List
+		# Update = Any contact in the user's mailbox that has a matching email address with a contact in the Global Address List
+		# Create = Any contact in the Global Address List does not does not have a matching email with a contact in the user's mailbox
+		$MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$ContactList.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
+		$MailboxContactsToBeUpdated = $ContactList | Where-Object {$MailboxEmailList.Contains($_.WindowsEmailAddress)}
+		$MailboxContactsToBeCreated = $ContactList | Where-Object {!$MailboxEmailList.Contains($_.WindowsEmailAddress)}
+	}
 
 	#
 	# DELETE
