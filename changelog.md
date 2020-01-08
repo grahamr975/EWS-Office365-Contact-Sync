@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Create switch parameter for wether to import all contacts, or only user contacts
 
 ## [1.0.3] - 2019-11-15
+## Changed
+- Removed redundant error handling to improve performance
+
+## [1.0.3] - 2019-11-15
 ## Fixed
 - Fatal error when there are no contacts in the user's mailbox
 

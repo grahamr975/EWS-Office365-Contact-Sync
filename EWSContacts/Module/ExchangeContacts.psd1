@@ -77,6 +77,7 @@
 		'Get-EmailAddressFromContact',
 		'Get-Mailboxes',
 		'New-EXCContact',
+		'New-EXCContactObject',
 		'New-EXCContactFolder',
 		'New-EXCContactGroup',
 		'Get-EXCPrivacyReport',
@@ -85,6 +86,7 @@
 		'Search-EXCAllContactFolders',
 		'Search-EXCAllContactGroups',
 		'Set-EXCContact',
+		'Set-EXCContactObject',
 		'Sync-ContactList'
 	)
 	
