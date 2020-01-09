@@ -5,12 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] (To do list)
-- Multi threading
+- Multi threading?
 - Create switch parameter for wether to import all contacts, or only user contacts
+- M2FA Support
+- Move from basic authenication to OAuth
 
-## [1.0.3] - 2019-11-15
+## [1.0.4] - 2019-11-15
+## New
+- New function: SetEXCContactObject; Updates an EWS Contact object that is passed into the function
+- New function: NewEXCContactObject; Creates a new EWS Contact. The EWS Service and Contact Folder objects are passed into this function
 ## Changed
-- Removed redundant error handling to improve performance
+- Sync-ContactList function now uses SetEXCContactObject and NewEXCContactObject to improve the speed of the script
 
 ## [1.0.3] - 2019-11-15
 ## Fixed
