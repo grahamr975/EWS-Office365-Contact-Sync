@@ -4,16 +4,16 @@ function Sync-ContactList {
 		Uses Exchange Web Services API to syncronise a list of contacts to an Office 365 Mailbox
 	
 	.PARAMETER Mailbox
-		Email address of an Office 365 user
+		Target mailbox that the ContactList will be synced to; Email address of an Office 365 business user who is in the same directory as the admin credentials
 	
 	.PARAMETER Credential
-		Office 365 Admin Credentials
+		Office 365 administrator credentials -- This account needs to have application impersonation permission
 
 	.PARAMETER FolderName
-		Name of the contact folder that will be synced to
+		Name of the contact folder that the ContactList will be synced to
 
 	.PARAMETER ContactList
-		An array with DisplayName, FirstName, LastName, Title, Company, Department, WindowsEmailAddress, Phone, and MobilePhone properties
+		An array with DisplayName, FirstName, LastName, Title, Company, Department, WindowsEmailAddress, Phone, and MobilePhone fields
 	
 	.EXAMPLE
 		PS C:\> Sync-ContactList -Mailbox "john.doe@example.com" -Credential $Credentials -FolderName "myFolder" -ContactList $Contacts
@@ -57,7 +57,7 @@ process {
 	} else {
 		$MailboxEmailList = Get-EmailAddressFromContact -Contact $MailboxContacts
 		# For each contact, determine if it needs to be deleted, updated, or created
-		# Delete = Any contact in the user's mailbox that does not have an email address matching any contact in the Global Address List
+		# Delete = Any contact in the user's mailbox that does not have an email address matching any contact in the Global Address List; Contacts with no email address are not deleted.
 		# Update = Any contact in the user's mailbox that has a matching email address with a contact in the Global Address List
 		# Create = Any contact in the Global Address List does not does not have a matching email with a contact in the user's mailbox
 		$MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$ContactList.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
