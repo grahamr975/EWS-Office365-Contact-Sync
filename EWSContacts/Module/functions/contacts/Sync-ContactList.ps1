@@ -47,7 +47,7 @@ process {
 
 	# Fetch folder & contacts from the user's mailbox
 	$ContactsFolderObject = Get-EXCContactFolder -Service $service -FolderPath "Contacts\$FolderName" -SmptAddress $Mailbox
-	$MailboxContacts = Get-EXCContacts -MailboxName $Mailbox -Credentials $Credential -Folder "Contacts\$FolderName" | Where-Object {$null -ne $_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address}
+	$MailboxContacts = Get-EXCContactsObject -MailboxName $Mailbox -Credentials $Credential -Folder $ContactsFolderObject -service $service | Where-Object {$null -ne $_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address}
 	
 	# If the user has no contacts, add them all in.
 	if ($null -eq $MailboxContacts) {
