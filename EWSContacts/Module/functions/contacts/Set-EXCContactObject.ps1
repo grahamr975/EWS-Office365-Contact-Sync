@@ -338,6 +338,5 @@
 			$fileAttach.IsContactPhoto = $true
 		}
 		$Contact.Update([Microsoft.Exchange.WebServices.Data.ConflictResolutionMode]::AlwaysOverwrite)
-		Write-Verbose "Contact updated $($Contact.Subject)"
 	}
 }

@@ -48,7 +48,7 @@ If($logfile) {
 	Add-Content $logfile -Value $Line -Force
 }
 Else {
-	Write-Output $Line
+	Write-Verbose $Line
 }
 if ($Level -eq "FATAL") {
 	Write-Error $Message
