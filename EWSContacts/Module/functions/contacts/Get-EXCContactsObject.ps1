@@ -43,6 +43,7 @@
 		$Folder,
 
 		[Parameter(Position = 3, Mandatory = $true)]
+		[Microsoft.Exchange.WebServices.Data.ExchangeService]
 		$Service,
 		
 		[switch]
