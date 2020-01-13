@@ -278,7 +278,6 @@
 				$fileAttach.IsContactPhoto = $true
 			}
 			$Contact.Save($Folder.Id)
-			Write-Host "Contact Created"
 		}
 	}
 }
