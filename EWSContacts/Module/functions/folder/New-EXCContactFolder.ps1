@@ -42,6 +42,7 @@ function New-EXCContactFolder
 				Get-EXCContactFolder -SmptAddress $MailboxName -FolderPath "Contacts\$FolderName" -Service $Service | Out-Null
 			} catch {
 			# # If the read fails, create the folder.
+				Write-Verbose "$FolderName not found, attempting to create now..."
 				$ContactsFolder = New-Object Microsoft.Exchange.WebServices.Data.ContactsFolder($service);
 				$ContactsFolder.DisplayName = $FolderName
 				$ContactsFolder.Save([Microsoft.Exchange.WebServices.Data.WellKnownFolderName]::MsgFolderRoot)

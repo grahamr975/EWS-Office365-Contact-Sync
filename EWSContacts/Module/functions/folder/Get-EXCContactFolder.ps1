@@ -61,7 +61,7 @@
 			}
 			else
 			{
-				Write-host "Error Folder Not Found check path and try again"
+				Write-host "Folder Not Found"
 				$tfTargetFolder = $null
 				break
 			}
