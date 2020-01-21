@@ -8,6 +8,9 @@ function Get-GALContacts {
 	
 	.PARAMETER Credentials
 		Office 365 Admin Credentials
+
+	.PARAMETER RequirePhoneNumber
+		Switch; Only return contacts that have a phone or mobile number
 	
 	.EXAMPLE
 		PS C:\> Get-GALContacts -ConnectionUri 'https://outlook.office365.com/powershell-liveid/' -Credentials $Credentials
@@ -20,7 +23,11 @@ param (
 
 	[Parameter(Position = 1, Mandatory = $true)]
 	[System.Management.Automation.PSCredential]
-	$Credentials
+	$Credentials,
+
+	[Parameter(Position = 2, Mandatory = $false)]
+	[switch]
+	$RequirePhoneNumber
 )
 process {
 	try {
@@ -34,6 +41,9 @@ process {
 		# Import Global Address List into Powershell from Office 365 Exchange as an array
 		$ContactList = Get-User -ResultSize unlimited | Where-Object {$null -ne $_.WindowsEmailAddress}
 		$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress)}
+		if ($RequirePhoneNumber) {
+			$ContactList = $ContactList | Where-Object {$_.Phone -or $_.MobilePhone}
+		}
 	Remove-PSSession $Session
 	return $ContactList
 	} catch {
