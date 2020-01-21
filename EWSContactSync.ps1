@@ -23,6 +23,9 @@ NOTE: To prevent duplicates, the specified folder is wiped before importing. For
 .PARAMETER LogPath
 Optional, Specifies the path of where the Log files are stored, along with the naming pattern of the log files.
 
+.PARAMETER RequirePhoneNumber
+Optional switch, only imports contacts that have either a phone number or mobile number
+
 .EXAMPLE
 
 Command Prompt
@@ -48,7 +51,9 @@ Param (
     [Parameter(Mandatory=$False)]
 	[String]$LogPath,
     [Parameter(Mandatory=$True)]
-    [String[]]$MailboxList
+    [String[]]$MailboxList,
+    [Parameter(Mandatory=$false)]
+    [Switch]$RequirePhoneNumber
 )
 
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
@@ -69,7 +74,11 @@ $Credential = Import-CliXml -Path $CredentialPath
 #-----------------------------------------------------------[Fetch Global Address List & Mailbox List]------------------------------------------------------------
 
 # Fetch list of Global Address List contacts using Office 365 Powershell
-$GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential
+if ($RequirePhoneNumber) {
+    $GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential -RequirePhoneNumber
+} else {
+    $GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential
+}
 
 # If 'DIRECTORY' is used for $MailboxList, fetch all Mailboxes from the administrator account's Office 365 directory
 if ($MailboxList -eq "DIRECTORY") {
