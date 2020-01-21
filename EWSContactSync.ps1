@@ -24,7 +24,7 @@ NOTE: To prevent duplicates, the specified folder is wiped before importing. For
 Optional, Specifies the path of where the Log files are stored, along with the naming pattern of the log files.
 
 .PARAMETER RequirePhoneNumber
-Optional switch, only imports contacts that have either a phone number or mobile number
+Optional switch, When importing contacts from your directory, only imports contacts that have either a phone number or mobile number
 
 .EXAMPLE
 
