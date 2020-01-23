@@ -26,14 +26,16 @@ process {
 	try {
 		# Connect to Office 365 Exchange Server using a Remote Session
 	$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
-	Import-PSSession $Session -DisableNameChecking
+	Import-PSSession $Session -DisableNameChecking -AllowClobber
 	
 		$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
-		$EmailAddressList = $DirectoryList.PrimarySMTPAddress
 	Remove-PSSession $Session
-	return $EmailAddressList
+
+	$EmailAddressList = $DirectoryList.PrimarySMTPAddress
+
 	} catch {
 		Write-Log -Level "FATAL" -Message "Failed to fetch user mailbox list from Office 365 directory" -exception $_.Exception.Message
 	}
+	return $EmailAddressList
 }
 }
