@@ -26,6 +26,9 @@ Optional, Specifies the path of where the Log files are stored, along with the n
 .PARAMETER RequirePhoneNumber
 Optional switch, When importing contacts from your directory, only imports contacts that have either a phone number or mobile number
 
+.PARAMETER IncludeNonMailboxContacts
+Optional Switch; Also include directory contacts that don't have an actual mailbox
+
 .EXAMPLE
 
 Command Prompt
