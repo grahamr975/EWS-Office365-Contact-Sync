@@ -27,7 +27,11 @@ param (
 
 	[Parameter(Position = 2, Mandatory = $false)]
 	[switch]
-	$RequirePhoneNumber
+	$RequirePhoneNumber,
+
+	[Parameter(Position = 3, Mandatory = $false)]
+	[switch]
+	$IncludeNonMailboxContacts
 )
 process {
 	try {
@@ -35,12 +39,17 @@ process {
 	$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
 	Import-PSSession $Session -DisableNameChecking -AllowClobber
 	
-		$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
-		$EmailAddressList = $DirectoryList.PrimarySMTPAddress
-	
 		# Import Global Address List into Powershell from Office 365 Exchange as an array
 		$ContactList = Get-User -ResultSize unlimited | Where-Object {$null -ne $_.WindowsEmailAddress}
-		$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress)}
+
+		# If the IncludeNonMailboxContacts switch is enabled, also include contacts that don't have a mailbox in your directory.
+		if ($IncludeNonMailboxContacts) {
+			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone
+		} else {
+			$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
+			$EmailAddressList = $DirectoryList.PrimarySMTPAddress
+			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress)}
+		}
 		if ($RequirePhoneNumber) {
 			$ContactList = $ContactList | Where-Object {$_.Phone -or $_.MobilePhone}
 		}
