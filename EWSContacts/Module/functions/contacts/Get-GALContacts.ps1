@@ -11,6 +11,9 @@ function Get-GALContacts {
 
 	.PARAMETER RequirePhoneNumber
 		Switch; Only return contacts that have a phone or mobile number
+
+	.PARAMETER IncludeNonMailboxContacts
+		Switch; Also include directory users that don't have an actual mailbox
 	
 	.EXAMPLE
 		PS C:\> Get-GALContacts -ConnectionUri 'https://outlook.office365.com/powershell-liveid/' -Credentials $Credentials
