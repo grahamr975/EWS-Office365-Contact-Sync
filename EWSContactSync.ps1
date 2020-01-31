@@ -53,7 +53,9 @@ Param (
     [Parameter(Mandatory=$True)]
     [String[]]$MailboxList,
     [Parameter(Mandatory=$false)]
-    [Switch]$RequirePhoneNumber
+    [Switch]$RequirePhoneNumber,
+    [Parameter(Mandatory=$false)]
+    [Switch]$IncludeNonMailboxContacts
 )
 
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
@@ -74,11 +76,7 @@ $Credential = Import-CliXml -Path $CredentialPath
 #-----------------------------------------------------------[Fetch Global Address List & Mailbox List]------------------------------------------------------------
 
 # Fetch list of Global Address List contacts using Office 365 Powershell
-if ($RequirePhoneNumber) {
-    $GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential -RequirePhoneNumber
-} else {
-    $GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential
-}
+$GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential -RequirePhoneNumber $RequirePhoneNumber -IncludeNonMailboxContacts $IncludeNonMailboxContacts
 
 # If 'DIRECTORY' is used for $MailboxList, fetch all Mailboxes from the administrator account's Office 365 directory
 if ($MailboxList -eq "DIRECTORY") {
