@@ -66,7 +66,7 @@
 				break
 			}
 		}
-		if ($tfTargetFolder -ne $null)
+		if ($null-ne $tfTargetFolder)
 		{
 			$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 			return [Microsoft.Exchange.WebServices.Data.Folder]::Bind($Service, $tfTargetFolder.Id)
