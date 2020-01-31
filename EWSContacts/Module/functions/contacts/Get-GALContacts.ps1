@@ -29,11 +29,11 @@ param (
 	$Credentials,
 
 	[Parameter(Position = 2, Mandatory = $false)]
-	[switch]
+	[bool]
 	$RequirePhoneNumber,
 
 	[Parameter(Position = 3, Mandatory = $false)]
-	[switch]
+	[bool]
 	$IncludeNonMailboxContacts
 )
 process {
