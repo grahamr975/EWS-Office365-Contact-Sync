@@ -27,7 +27,6 @@ process {
 		# Connect to Office 365 Exchange Server using a Remote Session
 	$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
 	Import-PSSession $Session -DisableNameChecking -AllowClobber
-	
 		$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
 	Remove-PSSession $Session
 
