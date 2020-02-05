@@ -24,17 +24,18 @@ param (
 )
 process {
 	try {
+	# $Null = @() is a workaround for this function returning a random filename such as "tmp_z1ci55dv.kke" at the start of the output....
+	$Null = @(
 		# Connect to Office 365 Exchange Server using a Remote Session
-	$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
-	Import-PSSession $Session -DisableNameChecking -AllowClobber
-		$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
-	Remove-PSSession $Session
-
-	$EmailAddressList = $DirectoryList.PrimarySMTPAddress
+		$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
+		Import-PSSession $Session -DisableNameChecking -AllowClobber
+			$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"}).PrimarySMTPAddress
+		Remove-PSSession $Session
+	)
 
 	} catch {
 		Write-Log -Level "FATAL" -Message "Failed to fetch user mailbox list from Office 365 directory" -exception $_.Exception.Message
 	}
-	return $EmailAddressList
+	return $DirectoryList | Where-Object {$null -ne $_ -and "" -ne $_}
 }
 }
