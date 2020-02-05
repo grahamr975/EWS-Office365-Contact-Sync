@@ -23,11 +23,14 @@ NOTE: To prevent duplicates, the specified folder is wiped before importing. For
 .PARAMETER LogPath
 Optional, Specifies the path of where the Log files are stored, along with the naming pattern of the log files.
 
-.PARAMETER RequirePhoneNumber
-Optional switch, When importing contacts from your directory, only imports contacts that have either a phone number or mobile number
+.PARAMETER ExcludeContactsWithoutPhoneNumber
+Optional Switch; Only sync contacts that have a phone or mobile number
 
-.PARAMETER IncludeNonMailboxContacts
-Optional Switch; Also include directory contacts that don't have an actual mailbox
+.PARAMETER ExcludeSharedMailboxContacts
+Optional Switch; Don't sync contacts that are a shared mailbox, or are a mailbox without a liscense
+
+.PARAMETER IncludeNonUserContacts
+Optional Switch; Also sync contacts that aren't users/mailboxes in your directory. These contacts must still have an email address.
 
 .EXAMPLE
 
@@ -56,9 +59,11 @@ Param (
     [Parameter(Mandatory=$True)]
     [String[]]$MailboxList,
     [Parameter(Mandatory=$false)]
-    [Switch]$RequirePhoneNumber,
+    [Switch]$ExcludeContactsWithoutPhoneNumber,
     [Parameter(Mandatory=$false)]
-    [Switch]$IncludeNonMailboxContacts
+    [Switch]$ExcludeSharedMailboxContacts,
+    [Parameter(Mandatory=$false)]
+    [Switch]$IncludeNonUserContacts
 )
 
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
@@ -79,7 +84,7 @@ $Credential = Import-CliXml -Path $CredentialPath
 #-----------------------------------------------------------[Fetch Global Address List & Mailbox List]------------------------------------------------------------
 
 # Fetch list of Global Address List contacts using Office 365 Powershell
-$GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential -RequirePhoneNumber $RequirePhoneNumber -IncludeNonMailboxContacts $IncludeNonMailboxContacts
+$GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential -ExcludeContactsWithoutPhoneNumber $ExcludeContactsWithoutPhoneNumber -ExcludeSharedMailboxContacts $ExcludeSharedMailboxContacts -IncludeNonUserContacts $IncludeNonUserContacts
 
 # If 'DIRECTORY' is used for $MailboxList, fetch all Mailboxes from the administrator account's Office 365 directory
 if ($MailboxList -eq "DIRECTORY") {

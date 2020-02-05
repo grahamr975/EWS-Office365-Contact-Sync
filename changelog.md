@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - M2FA Support
 - Move from basic authenication to OAuth
 
+## [2.0.0] - 2/5/2020 (Note: This update may break previous installations...)
+## New
+- Added IncludeNonUserContacts switch to Get-GALContacts and EWSContactSync
+- Added ExcludeSharedMailboxContacts switch to Get-GALContacts and EWSContactSync
+## Changed
+- Shared mailboxes are now automatically included as contacts by default. To exclude shared mailboxes, use the ExcludeSharedMailboxContacts switch. This change is intented to improve clarity.
+- The RequirePhoneNumber parameter has been changed to ExcludeContactsWithoutPhoneNumber in order to improve clarity
+
 ## [1.0.4] - 2019-11-15
 ## New
 - New function: SetEXCContactObject; Updates an EWS Contact object that is passed into the function
