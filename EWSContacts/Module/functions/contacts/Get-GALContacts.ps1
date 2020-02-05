@@ -44,7 +44,7 @@ param (
 	$IncludeNonUserContacts
 )
 process {
-	#try {
+	try {
 		# Connect to Office 365 Exchange Server using a Remote Session
 	$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
 	Import-PSSession $Session -DisableNameChecking -AllowClobber
@@ -73,8 +73,8 @@ process {
 	Remove-PSSession $Session
 	# Only return contacts with email addresses
 	return $ContactList | Where-Object {$null -ne $_.WindowsEmailAddress -and "" -ne $_.WindowsEmailAddress}
-	#} catch {
+	} catch {
 		Write-Log -Level "FATAL" -Message "Failed to fetch Global Address List Contacts from Office 365 Directory" -exception $_.Exception.Message
-	#}
+	}
 }
 }
