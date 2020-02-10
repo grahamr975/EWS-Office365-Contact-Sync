@@ -42,7 +42,7 @@ PowerShell.exe -ExecutionPolicy Bypass ^
 -CredentialPath "C:\Encrypted Credentials\SecureCredential.cred" ^
 -FolderName "Directory Contacts" ^
 -LogPath "%~dp0Logs" ^
--MailboxList john.doe@mycompany.com ^
+-MailboxList DIRECTORY ^
 pause
 ```
 
