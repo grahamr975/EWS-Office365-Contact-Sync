@@ -5,9 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] (To do list)
-- Multi threading?
-- Create switch parameter for wether to import all contacts, or only user contacts
-- M2FA Support
 - Move from basic authenication to OAuth
 
 ## [2.0.0] - 2/5/2020 (Note: This update may break previous installations...)
