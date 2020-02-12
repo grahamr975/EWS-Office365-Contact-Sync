@@ -1,5 +1,4 @@
 # EWS Contact Sync
-
 Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to sync your Global Address List to any/every user in the directory.
 
 **Why would I want to use this?** iPhone/Android devices don't currently support offline Global Address List synchronization. By loading the Global Address List contacts into a folder within user's mailbox, you can circumvent this limitation.
@@ -13,12 +12,14 @@ Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to
 
 ## Getting Started
 
-1. Download the latest version here: https://github.com/grahamr975/EWS-Office365-Contact-Sync
-2. Export your credentials to a CliXml credential file
-3. To test, run for a single mailbox in your directory
-4. To run the script for all users, specify DIRECTORY for MailboxList
-
-Example single mailbox batch file
+1. Install the EWS API here: https://www.microsoft.com/en-us/download/details.aspx?id=42951
+2. Download the latest version of the script here: https://github.com/grahamr975/EWS-Office365-Contact-Sync
+3. Export your Office 365 administrator credentials to a CliXml credential file. See below for an example on how to do this.
+``
+$Credxmlpath = "C:\MyCredentials\"
+$Credential | Export-Clixml $Credxmlpath
+``
+4. To test the script, run for a single mailbox in your directory. See below for an example (batch file)
 ```
 @echo off
 cd "%~dp0EWS-Office365-Contact-Sync"
@@ -31,8 +32,7 @@ PowerShell.exe -ExecutionPolicy Bypass ^
 -MailboxList john.doe@mycompany.com ^
 pause
 ```
-
-Example entire directory batch file
+5. Once you're ready, specify DIRECTORY for MailboxList. This will sync the contacts for all users in your directory. See below for an example (batch file)
 ```
 @echo off
 cd "%~dp0EWS-Office365-Contact-Sync"
