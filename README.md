@@ -15,10 +15,10 @@ Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to
 1. Install the EWS API here: https://www.microsoft.com/en-us/download/details.aspx?id=42951
 2. Download the latest version of the script here: https://github.com/grahamr975/EWS-Office365-Contact-Sync
 3. Export your Office 365 administrator credentials to a CliXml credential file. See below for an example on how to do this.
-``
+```
 $Credxmlpath = "C:\MyCredentials\"
 $Credential | Export-Clixml $Credxmlpath
-``
+```
 4. To test the script, run for a single mailbox in your directory. See below for an example (batch file)
 ```
 @echo off
