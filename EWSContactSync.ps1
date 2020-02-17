@@ -94,7 +94,11 @@ if ($MailboxList -eq "DIRECTORY") {
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
 foreach ($Mailbox in $MailboxList) {
-    Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts
+    try {
+        Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts
+    } catch {
+        Write-Log -Level "ERROR" -Message "Failed to Sync-ContactList for $Mailbox" -exception $_.Exception.Message
+    }
 }
 
 Stop-Transcript
