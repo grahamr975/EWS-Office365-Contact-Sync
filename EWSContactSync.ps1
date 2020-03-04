@@ -13,6 +13,9 @@ Specify an email address list that recieves the contacts. Set this value to 'DIR
 
 Example: $MailboxList = @("myemail1@domain.com", "myemail2@domain.com", "myemail3@domain.com")
 
+.PARAMETER ClientID
+Optional string; Used for ModernAuth/OAuth
+
 .PARAMETER CredentialPath
 Specifies the path of the Office 365 Administrator Credentials
 
@@ -51,17 +54,33 @@ https://www.microsoft.com/en-us/download/details.aspx?id=42951
 
 Param (
     [Parameter(Mandatory=$True)]
-    [System.IO.FileInfo]$CredentialPath,
+    [System.IO.FileInfo]
+    $CredentialPath,
+
     [Parameter(Mandatory=$True)]
-    [String]$FolderName,
+    [String]
+    $FolderName,
+
     [Parameter(Mandatory=$False)]
-	[String]$LogPath,
+    [String]
+    $LogPath,
+
     [Parameter(Mandatory=$True)]
-    [String[]]$MailboxList,
+    [String[]]
+    $MailboxList,
+
     [Parameter(Mandatory=$false)]
-    [Switch]$ExcludeContactsWithoutPhoneNumber,
+    [String]
+    $ClientID,
+
     [Parameter(Mandatory=$false)]
-    [Switch]$ExcludeSharedMailboxContacts,
+    [Switch]
+    $ExcludeContactsWithoutPhoneNumber,
+
+    [Parameter(Mandatory=$false)]
+    [Switch]
+    $ExcludeSharedMailboxContacts,
+    
     [Parameter(Mandatory=$false)]
     [Switch]$IncludeNonUserContacts
 )
@@ -95,7 +114,7 @@ if ($MailboxList -eq "DIRECTORY") {
 
 foreach ($Mailbox in $MailboxList) {
     try {
-        Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts
+        Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts -ClientID $ClientID
     } catch {
         Write-Log -Level "ERROR" -Message "Failed to Sync-ContactList for $Mailbox" -exception $_.Exception.Message
     }

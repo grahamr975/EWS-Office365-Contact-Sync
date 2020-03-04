@@ -9,6 +9,9 @@ function Sync-ContactList {
 	.PARAMETER Credential
 		Office 365 administrator credentials -- This account needs to have application impersonation permission
 
+	.PARAMETER ClientID
+		Used for ModernAuth/OAuth
+
 	.PARAMETER FolderName
 		Name of the contact folder that the ContactList will be synced to
 
@@ -28,22 +31,26 @@ param (
 	[System.Management.Automation.PSCredential]
 	$Credential,
 
-	[Parameter(Position = 2, Mandatory = $true)]
+	[Parameter(Position = 2, Mandatory = $false)]
+	[string]
+	$ClientID,
+
+	[Parameter(Position = 3, Mandatory = $true)]
 	[string]
 	$FolderName,
 
-	[Parameter(Position = 3, Mandatory = $true)]
+	[Parameter(Position = 4, Mandatory = $true)]
 	$ContactList
 )
 process {
 	Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox"
 
-	# Check if a contacts folder exists with $FolderName. If not, create it.
-	New-EXCContactFolder -MailboxName $Mailbox -FolderName "$FolderName" -Credential $Credential
-
 	# Create EWS Service object
 	$service = Connect-EXCExchange -MailboxName $Mailbox -Credential $Credential
 	$service.ImpersonatedUserId = New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $Mailbox);
+
+	# Check if a contacts folder exists with $FolderName. If not, create it.
+	New-EXCContactFolder -MailboxName $Mailbox -FolderName "$FolderName" -Service $service
 
 	# Fetch folder & contacts from the user's mailbox
 	$ContactsFolderObject = Get-EXCContactFolder -Service $service -FolderPath "Contacts\$FolderName" -SmptAddress $Mailbox
