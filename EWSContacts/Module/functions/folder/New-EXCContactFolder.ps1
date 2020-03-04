@@ -27,19 +27,19 @@ function New-EXCContactFolder
 		[Parameter()]
 		[string]
 		$FolderName,
-		
-		[Parameter()]
-		[System.Management.Automation.PSCredential]
-		$Credential
+
+		[Parameter(Position = 3, Mandatory = $true)]
+		[Microsoft.Exchange.WebServices.Data.ExchangeService]
+		$service
+
 	)
 	process
 	{
 		try {
 			# Try to read from the specified folder
-			$service = Connect-EXCExchange -MailboxName $MailboxName -Credential $Credential
 			$service.ImpersonatedUserId = New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName);
 			try {
-				Get-EXCContactFolder -SmptAddress $MailboxName -FolderPath "Contacts\$FolderName" -Service $Service | Out-Null
+				Get-EXCContactFolder -SmptAddress $MailboxName -FolderPath "Contacts\$FolderName" -Service $service | Out-Null
 			} catch {
 			# # If the read fails, create the folder.
 				Write-Verbose "$FolderName not found, attempting to create now..."
