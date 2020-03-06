@@ -52,7 +52,6 @@
 	Begin
 	{
 		#Connect
-		$service = Connect-EXCExchange -MailboxName $MailboxName -Credential $Credentials
 		$service.ImpersonatedUserId = New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $Mailbox);
 
 		if ($service.URL)
