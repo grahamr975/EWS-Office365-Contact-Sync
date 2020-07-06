@@ -73,15 +73,16 @@
 		## Set Credentials to use two options are availible Option1 to use explict credentials or Option 2 use the Default (logged On) credentials  
 		
 		#Credentials Option 1 using UPN for the windows Account  
-		#$psCred = Get-Credential  
+		#$psCred = Get-Credential
 		if ($ModernAuth.IsPresent) {
 			Write-Verbose("Using Modern Auth")
 			if ([String]::IsNullOrEmpty($ClientId)) {
+				# This is the application ID for Microsoft Office; Source: https://docs.microsoft.com/en-us/office/dev/add-ins/develop/register-sso-add-in-aad-v2
 				$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c"
 			}		
 			Import-Module ($script:ModuleRoot + "/bin/Microsoft.IdentityModel.Clients.ActiveDirectory.dll") -Force
 			$Context = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext("https://login.microsoftonline.com/common")
-			if ($Credentials -eq $null) {
+			if ($null -eq $Credentials) {
 				$PromptBehavior = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.PlatformParameters -ArgumentList Auto  
 				
 				$token = ($Context.AcquireTokenAsync("https://outlook.office365.com", $ClientId , "urn:ietf:wg:oauth:2.0:oob", $PromptBehavior)).Result
@@ -147,8 +148,7 @@
 		#$uri=[system.URI] "https://casservername/ews/exchange.asmx"  
 		#$service.Url = $uri    
 		
-		## Optional section for Exchange Impersonation  
-		
+		## Optional section for Exchange Impersonation
 		$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName) 
 		if (!$service.URL) {
 			throw "Error connecting to EWS"

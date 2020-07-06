@@ -46,7 +46,7 @@ process {
 	Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox"
 
 	# Create EWS Service object
-	$service = Connect-EXCExchange -MailboxName $Mailbox -Credential $Credential
+	$service = Connect-EXCExchange -MailboxName $Mailbox -Credential $Credential -ClientID $ClientID -ModernAuth
 	$service.ImpersonatedUserId = New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $Mailbox);
 
 	# Check if a contacts folder exists with $FolderName. If not, create it.
