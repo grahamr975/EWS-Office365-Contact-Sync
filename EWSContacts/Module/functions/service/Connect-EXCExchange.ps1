@@ -7,10 +7,16 @@
 		A detailed description of the Connect-EXCExchange function.
 	
 	.PARAMETER MailboxName
-		A description of the MailboxName parameter.
+		Target mailbox that the ContactList will be synced to; Email address of an Office 365 business user who is in the same directory as the admin credentials
 	
 	.PARAMETER Credentials
-		A description of the Credentials parameter.
+		Office 365 administrator credentials -- This account needs to have application impersonation permission
+
+	.PARAMETER ModernAuth
+		Enables Modern Authenication, See https://docs.microsoft.com/en-us/office365/enterprise/office-365-client-support-modern-authentication 
+	
+	.PARAMETER ClientId
+		Used for ModernAuth/OAuth		
 	
 	.EXAMPLE
 		PS C:\> Connect-EXCExchange -MailboxName 'value1' -Credentials $Credentials
