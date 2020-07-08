@@ -75,6 +75,10 @@ Param (
 
     [Parameter(Mandatory=$false)]
     [Switch]
+    $ModernAuth,
+
+    [Parameter(Mandatory=$false)]
+    [Switch]
     $ExcludeContactsWithoutPhoneNumber,
 
     [Parameter(Mandatory=$false)]
@@ -114,7 +118,7 @@ if ($MailboxList -eq "DIRECTORY") {
 
 foreach ($Mailbox in $MailboxList) {
     try {
-        Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts -ClientID $ClientID
+        Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts -ClientID $ClientID -ModernAuth $ModernAuth
     } catch {
         Write-Log -Level "ERROR" -Message "Failed to Sync-ContactList for $Mailbox" -exception $_.Exception.Message
     }

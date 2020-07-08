@@ -32,12 +32,12 @@
 		$Credentials,
 
 		[Parameter(Position = 2, Mandatory = $False)]
-		[switch]
+		[bool]
 		$ModernAuth,
 		
 		[Parameter(Position = 3, Mandatory = $False)]
 		[String]
-		$ClientId
+		$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c"
 	)
 	Begin {
 		## Load Managed API dll  
@@ -80,7 +80,7 @@
 		
 		#Credentials Option 1 using UPN for the windows Account  
 		#$psCred = Get-Credential
-		if ($ModernAuth.IsPresent) {
+		if ($ModernAuth) {
 			Write-Verbose("Using Modern Auth")
 			if ([String]::IsNullOrEmpty($ClientId)) {
 				# This is the application ID for Microsoft Office; Source: https://docs.microsoft.com/en-us/office/dev/add-ins/develop/register-sso-add-in-aad-v2

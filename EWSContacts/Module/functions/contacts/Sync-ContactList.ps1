@@ -12,6 +12,9 @@ function Sync-ContactList {
 	.PARAMETER ClientID
 		Used for ModernAuth/OAuth
 
+	.PARAMETER ModernAuth
+		Enables Modern Authenication, See https://docs.microsoft.com/en-us/office365/enterprise/office-365-client-support-modern-authentication 
+
 	.PARAMETER FolderName
 		Name of the contact folder that the ContactList will be synced to
 
@@ -35,18 +38,22 @@ param (
 	[string]
 	$ClientID,
 
-	[Parameter(Position = 3, Mandatory = $true)]
+	[Parameter(Position = 3, Mandatory = $false)]
+	[bool]
+	$ModernAuth,
+
+	[Parameter(Position = 4, Mandatory = $true)]
 	[string]
 	$FolderName,
 
-	[Parameter(Position = 4, Mandatory = $true)]
+	[Parameter(Position = 5, Mandatory = $true)]
 	$ContactList
 )
 process {
 	Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox"
 
 	# Create EWS Service object
-	$service = Connect-EXCExchange -MailboxName $Mailbox -Credential $Credential -ClientID $ClientID -ModernAuth
+	$service = Connect-EXCExchange -MailboxName $Mailbox -Credential $Credential -ClientID $ClientID -ModernAuth $ModernAuth
 	$service.ImpersonatedUserId = New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $Mailbox);
 
 	# Check if a contacts folder exists with $FolderName. If not, create it.
