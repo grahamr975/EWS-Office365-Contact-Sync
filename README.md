@@ -22,7 +22,7 @@ Prerequisites
 Installation
 ------------
 1. Download the latest version here: https://github.com/grahamr975/EWS-Office365-Contact-Sync
-2. Extract all resouces to a folder on your computer
+2. Extract all resources to a folder on your computer
 3. Export your credentials to a CliXml credential file
 4. Run it
 
