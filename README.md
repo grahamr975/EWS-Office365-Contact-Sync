@@ -30,6 +30,7 @@ PowerShell.exe -ExecutionPolicy Bypass ^
 -FolderName "Directory Contacts" ^
 -LogPath "%~dp0Logs" ^
 -MailboxList john.doe@mycompany.com ^
+-ModernAuth
 pause
 ```
 5. Once you're ready, specify DIRECTORY for MailboxList. This will sync the contacts for all users in your directory. See below for an example (batch file)
@@ -43,6 +44,7 @@ PowerShell.exe -ExecutionPolicy Bypass ^
 -FolderName "Directory Contacts" ^
 -LogPath "%~dp0Logs" ^
 -MailboxList DIRECTORY ^
+-ModernAuth
 pause
 ```
 
