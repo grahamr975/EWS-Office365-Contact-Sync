@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
-## [2.0.1] - 8/21/2020
+## [2.0.2] - 8/21/2020
 ## Removed
 - Deleted unused/obsolete functions from from the EWS Contacts module
 
