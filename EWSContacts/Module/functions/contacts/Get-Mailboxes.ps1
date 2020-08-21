@@ -1,7 +1,7 @@
 function Get-Mailboxes {
 	<#
 	.SYNOPSIS
-		Uses Office 365 services to generate a list of contacts 
+		Uses Office 365 services to generate a list of user mailboxes 
 	
 	.PARAMETER ConnectionUri
 		Used to connect to Office 365, by default this is https://outlook.office365.com/powershell-liveid/.

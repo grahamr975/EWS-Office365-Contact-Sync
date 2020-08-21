@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [2.0.1] - 8/21/2020
+## Removed
+- Deleted unused/obsolete functions from from the EWS Contacts module
+
 ## [2.0.1] - 7/15/2020
 ## New
 - Added expermental support for Modern Authenication... See here for some backround information: https://techcommunity.microsoft.com/t5/exchange-team-blog/upcoming-changes-to-exchange-web-services-ews-api-for-office-365/ba-p/608055
