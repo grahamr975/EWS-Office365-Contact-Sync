@@ -53,7 +53,7 @@ pause
 ### Prerequisites
 
 - EWS API 2.2 https://www.microsoft.com/en-us/download/details.aspx?id=42951
-- O365 Global Admin Account with Application Impersonation permissions
+- O365 Global Admin Account with **Application Impersonation permissions** (You MUST set this seperately)
 - Powershell Version 3.0+
 - Think of a unique folder name (Any contacts not in the Global Address List will be deleted from the folder, so don't use 'Contacts' as the name.)
 
