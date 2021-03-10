@@ -53,7 +53,8 @@ pause
 ### Prerequisites
 
 - EWS API 2.2 https://www.microsoft.com/en-us/download/details.aspx?id=42951
-- O365 Global Admin Account with Application Impersonation permissions
+- O365 Global Admin Account with **Application Impersonation permissions** (You MUST set this seperately)
+- Verify the neccessary Office 365 URLs are whitelisted in your environment. All Microsoft 365 Common URLs with ID#56 on the following page should be allowed: https://docs.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges?view=o365-worldwide
 - Powershell Version 3.0+
 - Think of a unique folder name (Any contacts not in the Global Address List will be deleted from the folder, so don't use 'Contacts' as the name.)
 
@@ -84,4 +85,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 ## Acknowledgments
 
 * Thanks to gscales for his work on the EWSContacts powershell module. This script uses a modified version of their module. https://github.com/gscales/Powershell-Scripts/tree/master/EWSContacts
-
+* Thanks to [alexisc182](https://github.com/alexisc182) for their work on documenting the needed Office 365 URLs for whitelisting
