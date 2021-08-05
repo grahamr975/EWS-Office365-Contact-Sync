@@ -63,7 +63,7 @@ process {
 		
 		# If the IncludeNonUserContacts switch is enabled, also include contacts that aren't actual users in the directory
 		if ($IncludeNonUserContacts) {
-			$ContactList += Get-Contact | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone
+			$ContactList += Get-Contact -ResultSize unlimited | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone
 		}
 
 		# If the ExcludeContactsWithoutPhoneNumber switch is enabled, exclude contacts that don't have a phone or mobile number
