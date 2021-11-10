@@ -100,8 +100,20 @@ process {
 			if ($null -ne $Contact.WindowsEmailAddress) {
 				Write-Log -Message "Updating Contact: $($Contact.WindowsEmailAddress)"
 				$ContactObject = $MailboxContacts | Where-Object {$_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].address -eq $Contact.WindowsEmailAddress}
+				# If more than one contact is found with the same email, sync the first contact and delete the reset
+				if (($ContactObject | Measure-Object).Count -gt 1) {
+					$ContactToSync = $ContactObject | Select-Object -First 1
+					$MailboxContactDuplicates = $ContactObject | Select-Object -Skip 1
+					foreach ($ContactDuplicate in $MailboxContactDuplicates) {
+						Write-Log -Message "Deleting Contact With Duplicate Email: $($ContactDuplicate.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())"
+						$ContactDuplicate.Delete([Microsoft.Exchange.WebServices.Data.DeleteMode]::SoftDelete)
+					}
+				} else {
+					$ContactToSync = $ContactObject
+				}
+
 				try {
-					Set-EXCContactObject -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Credentials $Credential -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder "Contacts\$FolderName" -useImpersonation -force -Contact $ContactObject
+					Set-EXCContactObject -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Credentials $Credential -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder "Contacts\$FolderName" -useImpersonation -force -Contact $ContactToSync
 				} catch {
 					Write-Log -Level "ERROR" -Message "Failed to sync $($Contact.WindowsEmailAddress) contact to $($Mailbox)'s mailbox" -exception $_.Exception.Message
 				}

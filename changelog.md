@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [2.0.4] - 11/10/2021
+## Fixed
+- Fixed "No Given Name" error when attempting to update a contact when there are duplicates in the same mailbox with the same emails. The script now syncs only the first contact returned and deletes the duplicates.
+
 ## [2.0.3] - 09/08/2021
 ## Fixed
 - Fixed minor bug that caused a 1000 contact limit when using the non-user contacts switch
