@@ -55,8 +55,8 @@ process {
 		# If the ExcludeSharedMailboxContacts switch is enabled, exclude contacts that are a shared mailbox or mailbox with no liscense
 		if ($ExcludeSharedMailboxContacts) {
 			$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
-			$EmailAddressList = $DirectoryList.PrimarySMTPAddress
-			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress)}
+			$EmailAddressList = $($DirectoryList.PrimarySMTPAddress).ToLower()
+			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress.ToLower())}
 		} else {
 			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone
 		}
