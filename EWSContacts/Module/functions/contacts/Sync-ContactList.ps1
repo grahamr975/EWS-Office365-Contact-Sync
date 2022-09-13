@@ -30,30 +30,34 @@ param (
 	[string]
 	$Mailbox,
 
-	[Parameter(Position = 1, Mandatory = $true)]
-	[System.Management.Automation.PSCredential]
-	$Credential,
+	[Parameter(Position = 1, Mandatory=$True)]
+    [System.IO.FileInfo]
+    $CertificatePath,
 
-	[Parameter(Position = 2, Mandatory = $false)]
+    [Parameter(Position = 2, Mandatory=$True)]
+	[Security.SecureString]
+    $CertificatePassword,
+
+	[Parameter(Position = 3, Mandatory = $false)]
 	[string]
 	$ClientID,
 
-	[Parameter(Position = 3, Mandatory = $false)]
+	[Parameter(Position = 4, Mandatory = $false)]
 	[bool]
 	$ModernAuth,
 
-	[Parameter(Position = 4, Mandatory = $true)]
+	[Parameter(Position = 5, Mandatory = $true)]
 	[string]
 	$FolderName,
 
-	[Parameter(Position = 5, Mandatory = $true)]
+	[Parameter(Position = 6, Mandatory = $true)]
 	$ContactList
 )
 process {
 	Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox"
 
 	# Create EWS Service object
-	$service = Connect-EXCExchange -MailboxName $Mailbox -Credential $Credential -ClientID $ClientID -ModernAuth $ModernAuth
+	$service = Connect-EXCExchange -MailboxName $Mailbox -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -ClientID $ClientID -ModernAuth $ModernAuth
 	$service.ImpersonatedUserId = New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $Mailbox);
 
 	# Check if a contacts folder exists with $FolderName. If not, create it.
@@ -61,7 +65,7 @@ process {
 
 	# Fetch folder & contacts from the user's mailbox
 	$ContactsFolderObject = Get-EXCContactFolder -Service $service -FolderPath "Contacts\$FolderName" -SmptAddress $Mailbox
-	$MailboxContacts = Get-EXCContactsObject -MailboxName $Mailbox -Credentials $Credential -Folder $ContactsFolderObject -service $service | Where-Object {$null -ne $_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address}
+	$MailboxContacts = Get-EXCContactsObject -MailboxName $Mailbox -Folder $ContactsFolderObject -service $service | Where-Object {$null -ne $_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address}
 	
 	# If the user has no contacts, add them all in.
 	if ($null -eq $MailboxContacts) {
@@ -113,7 +117,7 @@ process {
 				}
 
 				try {
-					Set-EXCContactObject -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Credentials $Credential -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder "Contacts\$FolderName" -useImpersonation -force -Contact $ContactToSync
+					Set-EXCContactObject -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder "Contacts\$FolderName" -useImpersonation -force -Contact $ContactToSync
 				} catch {
 					Write-Log -Level "ERROR" -Message "Failed to sync $($Contact.WindowsEmailAddress) contact to $($Mailbox)'s mailbox" -exception $_.Exception.Message
 				}
@@ -127,7 +131,7 @@ process {
 		if ($null -ne $Contact.WindowsEmailAddress) {
 			Write-Log -Message "Creating Contact: $($Contact.WindowsEmailAddress)"
 			try {
-				New-EXCContactObject -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Credentials $Credential -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder $ContactsFolderObject -useImpersonation -service $service
+				New-EXCContactObject -MailboxName $Mailbox -DisplayName $Contact.DisplayName -FirstName $Contact.FirstName -LastName $Contact.LastName -EmailAddress $Contact.WindowsEmailAddress -CompanyName $Contact.Company -Department $Contact.Department -BusinssPhone $Contact.Phone -MobilePhone $Contact.MobilePhone -JobTitle $Contact.Title -Folder $ContactsFolderObject -useImpersonation -service $service
 			} catch {
 				Write-Log -Level "ERROR" -Message "Failed to create $($Contact.WindowsEmailAddress) contact in $($Mailbox)'s mailbox" -exception $_.Exception.Message
 			}

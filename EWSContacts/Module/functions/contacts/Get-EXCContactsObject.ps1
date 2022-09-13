@@ -36,13 +36,9 @@
 		$MailboxName,
 		
 		[Parameter(Position = 1, Mandatory = $true)]
-		[System.Management.Automation.PSCredential]
-		$Credentials,
-		
-		[Parameter(Position = 2, Mandatory = $true)]
 		$Folder,
 
-		[Parameter(Position = 3, Mandatory = $true)]
+		[Parameter(Position = 2, Mandatory = $true)]
 		[Microsoft.Exchange.WebServices.Data.ExchangeService]
 		$Service,
 		

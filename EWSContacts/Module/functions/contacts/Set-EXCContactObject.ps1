@@ -134,79 +134,75 @@
 		[string]
 		$CompanyName,
 		
-		[Parameter(Position = 6, Mandatory = $true)]
-		[System.Management.Automation.PSCredential]
-		$Credentials,
-		
-		[Parameter(Position = 7, Mandatory = $false)]
+		[Parameter(Position = 6, Mandatory = $false)]
 		[string]
 		$Department,
 		
-		[Parameter(Position = 8, Mandatory = $false)]
+		[Parameter(Position = 7, Mandatory = $false)]
 		[string]
 		$Office,
 		
-		[Parameter(Position = 9, Mandatory = $false)]
+		[Parameter(Position = 8, Mandatory = $false)]
 		[string]
 		$BusinssPhone,
 		
-		[Parameter(Position = 10, Mandatory = $false)]
+		[Parameter(Position = 9, Mandatory = $false)]
 		[string]
 		$MobilePhone,
 		
-		[Parameter(Position = 11, Mandatory = $false)]
+		[Parameter(Position = 10, Mandatory = $false)]
 		[string]
 		$HomePhone,
 		
-		[Parameter(Position = 12, Mandatory = $false)]
+		[Parameter(Position = 11, Mandatory = $false)]
 		[string]
 		$IMAddress,
 		
-		[Parameter(Position = 13, Mandatory = $false)]
+		[Parameter(Position = 12, Mandatory = $false)]
 		[string]
 		$Street,
 		
-		[Parameter(Position = 14, Mandatory = $false)]
+		[Parameter(Position = 13, Mandatory = $false)]
 		[string]
 		$City,
 		
-		[Parameter(Position = 15, Mandatory = $false)]
+		[Parameter(Position = 14, Mandatory = $false)]
 		[string]
 		$State,
 		
-		[Parameter(Position = 16, Mandatory = $false)]
+		[Parameter(Position = 15, Mandatory = $false)]
 		[string]
 		$PostalCode,
 		
-		[Parameter(Position = 17, Mandatory = $false)]
+		[Parameter(Position = 16, Mandatory = $false)]
 		[string]
 		$Country,
 		
-		[Parameter(Position = 18, Mandatory = $false)]
+		[Parameter(Position = 17, Mandatory = $false)]
 		[string]
 		$JobTitle,
 		
-		[Parameter(Position = 19, Mandatory = $false)]
+		[Parameter(Position = 18, Mandatory = $false)]
 		[string]
 		$Notes,
 		
-		[Parameter(Position = 20, Mandatory = $false)]
+		[Parameter(Position = 19, Mandatory = $false)]
 		[string]
 		$Photo,
 		
-		[Parameter(Position = 21, Mandatory = $false)]
+		[Parameter(Position = 20, Mandatory = $false)]
 		[string]
 		$FileAs,
 		
-		[Parameter(Position = 22, Mandatory = $false)]
+		[Parameter(Position = 21, Mandatory = $false)]
 		[string]
 		$WebSite,
 		
-		[Parameter(Position = 23, Mandatory = $false)]
+		[Parameter(Position = 22, Mandatory = $false)]
 		[string]
 		$Title,
 		
-		[Parameter(Position = 24, Mandatory = $false)]
+		[Parameter(Position = 23, Mandatory = $false)]
 		[string]
 		$Folder,
 		
@@ -218,15 +214,15 @@
 		[switch]
 		$force,
 		
-		[Parameter(Position = 25, Mandatory = $false)]
+		[Parameter(Position = 24, Mandatory = $false)]
 		[string]
 		$EmailAddressDisplayAs,
 		
-		[Parameter(Position = 26, Mandatory = $false)]
+		[Parameter(Position = 25, Mandatory = $false)]
 		[switch]
 		$useImpersonation,
 
-		[Parameter(Position = 27, Mandatory = $true)]
+		[Parameter(Position = 26, Mandatory = $true)]
 		$Contact
 	)
 	Begin

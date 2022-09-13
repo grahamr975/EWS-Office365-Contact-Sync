@@ -6,8 +6,8 @@ function Get-Mailboxes {
 	.PARAMETER ConnectionUri
 		Used to connect to Office 365, by default this is https://outlook.office365.com/powershell-liveid/.
 	
-	.PARAMETER Credentials
-		Office 365 Admin Credentials
+	.PARAMETER CertificatePath
+		Office 365 Azure App Certificate File Path (See README for details)
 	
 	.EXAMPLE
 		PS C:\> Get-GALContacts -ConnectionUri 'https://outlook.office365.com/powershell-liveid/' -Credentials $Credentials
@@ -19,18 +19,29 @@ param (
 	$ConnectionUri,
 
 	[Parameter(Position = 1, Mandatory = $true)]
-	[System.Management.Automation.PSCredential]
-	$Credentials
+	[System.IO.FileInfo]
+	$CertificatePath,
+
+	[Parameter(Position = 2, Mandatory = $true)]
+	[Security.SecureString]
+    $CertificatePassword,
+	
+	[Parameter(Position = 3, Mandatory = $true)]
+	[String]
+	$ExchangeOrg,
+
+	[Parameter(Position = 4, Mandatory = $true)]
+	[String]
+	$ClientID
 )
 process {
 	try {
 	# $Null = @() is a workaround for this function returning a random filename such as "tmp_z1ci55dv.kke" at the start of the output....
 	$Null = @(
 		# Connect to Office 365 Exchange Server using a Remote Session
-		$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
-		Import-PSSession $Session -DisableNameChecking -AllowClobber
+		Connect-ExchangeOnline -ConnectionUri $ConnectionUri -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -AppId $ClientID -Organization $ExchangeOrg
 			$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"}).PrimarySMTPAddress
-		Remove-PSSession $Session
+    Disconnect-ExchangeOnline -Confirm:$false
 	)
 
 	} catch {

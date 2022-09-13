@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [3.0.0] - 13/09/2022 (Note: This update may break previous installations...)
+## Changed
+- Upgraded EWS authenication from ADAL to the MSAL per work from Glenn Scales: https://github.com/gscales/Powershell-Scripts/blob/master/EWSContacts/Update%20for%20the%20ExchangeContacts%20Module%20for%20oAuth%20-%20Support%20for%20Client%20Credentials%20flow.md
+- All basic authenication has been replaced with Certificate-based OAuth Authenication in preperation for the October depreciation (See README.md for a guide on how to set this up.)
+## Fixed
+- Some errors have been addressed by forcing TLS 1.2 to due depreciation of the older TLS protocols
+## Removed
+- The ability to authenicate using basic credentials has been removed (See depreciation above)
+
 ## [2.0.4] - 11/10/2021
 ## Fixed
 - Fixed "No Given Name" error when attempting to update a contact when there are duplicates in the same mailbox with the same emails. The script now syncs only the first contact returned and deletes the duplicates.

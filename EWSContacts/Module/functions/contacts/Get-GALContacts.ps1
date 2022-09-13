@@ -6,8 +6,8 @@ function Get-GALContacts {
 	.PARAMETER ConnectionUri
 		Used to connect to Office 365, by default this is https://outlook.office365.com/powershell-liveid/.
 	
-	.PARAMETER Credentials
-		Office 365 Admin Credentials
+	.PARAMETER CertificatePath
+		Office 365 Azure App Certificate File Path (See README for details)
 
 	.PARAMETER ExcludeContactsWithoutPhoneNumber
 		Switch; Only return contacts that have a phone or mobile number
@@ -27,9 +27,17 @@ param (
 	[string]
 	$ConnectionUri,
 
-	[Parameter(Position = 1, Mandatory = $true)]
-	[System.Management.Automation.PSCredential]
-	$Credentials,
+	[System.IO.FileInfo]
+    $CertificatePath,
+
+	[Security.SecureString]
+    $CertificatePassword,
+
+	[String]
+	$ExchangeOrg,
+
+	[String]
+	$ClientID,
 
 	[Parameter(Position = 2, Mandatory = $false)]
 	[bool]
@@ -46,17 +54,16 @@ param (
 process {
 	try {
 		# Connect to Office 365 Exchange Server using a Remote Session
-	$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionUri -Credential $Credentials -Authentication Basic -AllowRedirection
-	Import-PSSession $Session -DisableNameChecking -AllowClobber
-	
+        Connect-ExchangeOnline -ConnectionUri $ConnectionUri -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -AppId $ClientID -Organization $ExchangeOrg
+		
 		# Import Global Address List into Powershell from Office 365 Exchange as an array
 		$ContactList = Get-User -ResultSize unlimited 
 
 		# If the ExcludeSharedMailboxContacts switch is enabled, exclude contacts that are a shared mailbox or mailbox with no liscense
 		if ($ExcludeSharedMailboxContacts) {
-			$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
-			$EmailAddressList = $($DirectoryList.PrimarySMTPAddress).ToLower()
-			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress.ToLower())}
+			$DirectoryList = $(Get-EXOMailbox -ResultSize unlimited -PropertySets Minimum,AddressList | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
+			$EmailAddressList = $DirectoryList.PrimarySMTPAddress
+			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress)}
 		} else {
 			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone
 		}
@@ -70,7 +77,8 @@ process {
 		if ($ExcludeContactsWithoutPhoneNumber) {
 			$ContactList = $ContactList | Where-Object {$_.Phone -or $_.MobilePhone}
 		}
-	Remove-PSSession $Session
+        Disconnect-ExchangeOnline -Confirm:$false
+
 	# Only return contacts with email addresses
 	return $ContactList | Where-Object {$null -ne $_.WindowsEmailAddress -and "" -ne $_.WindowsEmailAddress}
 	} catch {

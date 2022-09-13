@@ -55,7 +55,15 @@ https://www.microsoft.com/en-us/download/details.aspx?id=42951
 Param (
     [Parameter(Mandatory=$True)]
     [System.IO.FileInfo]
-    $CredentialPath,
+    $CertificatePath,
+
+    [Parameter(Mandatory=$True)]
+	[System.IO.FileInfo]
+    $CertificatePasswordPath,
+
+    [Parameter(Mandatory=$True)]
+    [String]
+    $ExchangeOrg,
 
     [Parameter(Mandatory=$True)]
     [String]
@@ -100,25 +108,29 @@ Start-Transcript -OutputDirectory $LogPath -NoClobber
 
 # Import Exchange Contacts module
 Import-Module .\EWSContacts\Module\ExchangeContacts.psm1 -Force
+Import-Module ExchangeOnlineManagement -Force
 
-# Import Office 365 Administrator credentials
-$Credential = Import-CliXml -Path $CredentialPath
+# Import the Exchange Certificate Password
+[Security.SecureString]$CertificatePassword = Import-CliXml -Path "$CertificatePasswordPath"
+
+# Force TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 #-----------------------------------------------------------[Fetch Global Address List & Mailbox List]------------------------------------------------------------
 
 # Fetch list of Global Address List contacts using Office 365 Powershell
-$GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential -ExcludeContactsWithoutPhoneNumber $ExcludeContactsWithoutPhoneNumber -ExcludeSharedMailboxContacts $ExcludeSharedMailboxContacts -IncludeNonUserContacts $IncludeNonUserContacts
+$GALContacts = Get-GALContacts -ConnectionUri https://outlook.office365.com/powershell-liveid/ -CertificatePath $CertificatePath -CertificatePassword $CertificatePassword -ExchangeOrg $ExchangeOrg -ClientID $ClientID -ExcludeContactsWithoutPhoneNumber $ExcludeContactsWithoutPhoneNumber -ExcludeSharedMailboxContacts $ExcludeSharedMailboxContacts -IncludeNonUserContacts $IncludeNonUserContacts
 
 # If 'DIRECTORY' is used for $MailboxList, fetch all Mailboxes from the administrator account's Office 365 directory
 if ($MailboxList -eq "DIRECTORY") {
-    $MailboxList = Get-Mailboxes -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credentials $Credential
+    $MailboxList = Get-Mailboxes -ConnectionUri https://outlook.office365.com/powershell-liveid/ -CertificatePath $CertificatePath -CertificatePassword $CertificatePassword -ExchangeOrg $ExchangeOrg -ClientID $ClientID
 }
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
 foreach ($Mailbox in $MailboxList) {
     try {
-        Sync-ContactList -Mailbox $Mailbox -Credential $Credential -FolderName $FolderName -ContactList $GALContacts -ClientID $ClientID -ModernAuth $ModernAuth
+        Sync-ContactList -Mailbox $Mailbox -FolderName $FolderName -ContactList $GALContacts -ClientID $ClientID -ModernAuth $ModernAuth -CertificatePath $CertificatePath -CertificatePassword $CertificatePassword
     } catch {
         Write-Log -Level "ERROR" -Message "Failed to Sync-ContactList for $Mailbox" -exception $_.Exception.Message
     }
