@@ -39,7 +39,7 @@ Install-Module -Name ExchangeOnlineManagement -RequiredVersion 2.0.5
             }
         ]
         ```
-        6. Be sure to grant admin consent to your app's permissions (Referenced in tutorial)
+    6. Be sure to grant admin consent to your app's permissions (Referenced in tutorial)
 3. Export your certificate password to a CliXml SecureString file. See Create-SecureCertificatePassword.ps1 in the 'Getting Started' folder for an example on how to do this.
 4. You'll also need your O365 Org URL (Needs to end in .onmicrosoft.com). Do find this, Navigate to the Office 365 Admin Center -> Setup -> Domains
 ```
