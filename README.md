@@ -42,6 +42,7 @@ Install-Module -Name ExchangeOnlineManagement -RequiredVersion 2.0.5
     6. Be sure to grant admin consent to your app's permissions (Referenced in tutorial)
 3. Export your certificate password to a CliXml SecureString file. See Create-SecureCertificatePassword.ps1 in the 'Getting Started' folder for an example on how to do this.
 4. You'll also need your O365 Org URL (Needs to end in .onmicrosoft.com). Do find this, Navigate to the Office 365 Admin Center -> Setup -> Domains
+### Example updated batch file with certificate authenication
 ```
 @echo off
 cd "%~dp0EWS-Office365-Contact-Sync"
@@ -54,20 +55,16 @@ PowerShell.exe -ExecutionPolicy Bypass ^
 -FolderName "Directory Contacts" ^
 -LogPath "%~dp0Logs" ^
 -MailboxList john.doe@mycompany.com ^
--ExchangeOrg "myorg.onmicrosoft.com" ^
+-ExchangeOrg "mycompany.onmicrosoft.com" ^
 -ModernAuth
 pause
 ```
 
 ## Getting Started
 
-1. Install the EWS API here: https://www.microsoft.com/en-us/download/details.aspx?id=42951
+1. ~~Install the EWS API here: https://www.microsoft.com/en-us/download/details.aspx?id=42951~~ **Now included as a .DLL in the script (Bin folder)**
 2. Download the latest version of the script here: https://github.com/grahamr975/EWS-Office365-Contact-Sync
-3. Export your Office 365 administrator credentials to a CliXml credential file. See below for an example on how to do this.
-```
-$Credxmlpath = "C:\MyCredentials\"
-$Credential | Export-Clixml $Credxmlpath
-```
+3. ~~Export your Office 365 administrator credentials to a CliXml credential file. See below for an example on how to do this.~~ **Replaced by certificate authenication**
 4. You may need to unblock the included .dll files. To do this, navigate to EWSContacts\Module\bin -> For each .dll file, right click on the file -> Check 'Unblock'
 
 4. To test the script, run for a single mailbox in your directory. See below for an example (batch file)
@@ -77,10 +74,13 @@ cd "%~dp0EWS-Office365-Contact-Sync"
 
 PowerShell.exe -ExecutionPolicy Bypass ^
 -File "%CD%\EWSContactSync.ps1" ^
--CredentialPath "C:\Encrypted Credentials\SecureCredential.cred" ^
+-CertificatePath "C:\Users\johndoe\Desktop\automation-cert.pfx" ^
+-CertificatePasswordPath "C:\Users\johndoe\Desktop\SecureCertificatePassword.cred" ^
+-ClientID "36ee4c6c-0812-40a2-b820-b22ebd02bce3" ^
 -FolderName "Directory Contacts" ^
 -LogPath "%~dp0Logs" ^
 -MailboxList john.doe@mycompany.com ^
+-ExchangeOrg "mycompany.onmicrosoft.com" ^
 -ModernAuth
 pause
 ```
@@ -91,18 +91,21 @@ cd "%~dp0EWS-Office365-Contact-Sync"
 
 PowerShell.exe -ExecutionPolicy Bypass ^
 -File "%CD%\EWSContactSync.ps1" ^
--CredentialPath "C:\Encrypted Credentials\SecureCredential.cred" ^
+-CertificatePath "C:\Users\johndoe\Desktop\automation-cert.pfx" ^
+-CertificatePasswordPath "C:\Users\johndoe\Desktop\SecureCertificatePassword.cred" ^
+-ClientID "36ee4c6c-0812-40a2-b820-b22ebd02bce3" ^
 -FolderName "Directory Contacts" ^
 -LogPath "%~dp0Logs" ^
 -MailboxList DIRECTORY ^
+-ExchangeOrg "mycompany.onmicrosoft.com" ^
 -ModernAuth
 pause
 ```
 
 ### Prerequisites
 
-- EWS API 2.2 https://www.microsoft.com/en-us/download/details.aspx?id=42951
-- O365 Global Admin Account with **Application Impersonation permissions** (You MUST set this seperately)
+- ~~EWS API 2.2 https://www.microsoft.com/en-us/download/details.aspx?id=42951~~ **Now included as a .DLL in the script (Bin folder)**
+- ~~O365 Global Admin Account with **Application Impersonation permissions** (You MUST set this seperately)~~ **Requirement replaced by Azure app**
 - Verify the neccessary Office 365 URLs are whitelisted in your environment. All Microsoft 365 Common URLs with ID#56 on the following page should be allowed: https://docs.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges?view=o365-worldwide
 - Powershell Version 3.0+
 - Think of a unique folder name (Any contacts not in the Global Address List will be deleted from the folder, so don't use 'Contacts' as the name.)
@@ -115,7 +118,7 @@ See EWSContactSync.ps1 for documentation on optional parameters for filtering co
 
 * [Powershell 5.0](https://github.com/PowerShell/PowerShell) - The main language used
 * [EWS](https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/ews-reference-for-exchange) - API for reading and writing contacts
-* [Exchange Online Powershell](https://www.powershellgallery.com/packages/ExchangeOnlineManagement/2.0.5) - Used to fetch contact and user mailbox data
+* [ExchangeOnline Powershell](https://www.powershellgallery.com/packages/ExchangeOnlineManagement/2.0.5) - Used to fetch contact and user mailbox data
 
 ## Versioning
 
