@@ -8,20 +8,21 @@ Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to
 - Import the list of contacts into a specified user's Office 365 mailbox
 - You can run the sync for any number of users
 - Specify a custom contact folder
-- Uses Application Impersonation so this can all be done from a single admin account (that has Application Impersonation permissions)
+- ~~Uses Application Impersonation so this can all be done from a single admin account (that has Application Impersonation permissions)~~  
+    Uses a single AzureApp & certificate based authenication (See guide below)
 
 ## Modern Certificate-Based Authenication Requirements (OCT 2022 Update)
-### Note to Legacy Users: This update requires you to complete the below steps in order to use the script. Do not update if you cannot complete these new steps. This method replaces the need to use credentials & instead uses a certificate for both the EWS and ExchangeOnline APIs.
+### Note to Legacy Users: This update requires you to complete the below steps in order to use the script.
 1. Install the Exchange Online Powershell V2
 ```
 Install-Module -Name ExchangeOnlineManagement -RequiredVersion 2.0.5
 ```
-2. Create an Azure app & certificate file using the tutorial here, taking note of the addendums below: https://github.com/MicrosoftDocs/office-docs-powershell/blob/main/exchange/docs-conceptual/app-only-auth-powershell-v2.md
-    1.  The app will require 'Global Reader' permission.
-    2.  Take a record of the Azure app's "Application (client) ID" as you'll need this later.
-    3.  Enable Public Client Flows in the Azure App (Authenication -> Allow public client flows)
-    4.  Specify a redirect URI (Authenication -> Platform Configurations -> Add a platform -> Mobile and desktop applications -> Enable 'https://login.microsoftonline.com/common/oauth2/nativeclient' as a redirect URI.)
-    5.  When updating the app's Manifest, insert the below code for "requiredResourceAccess" instead of following what the tutorial suggests. The below version also includes permissions for acting as an EWS Application.
+2. Create an Azure app & certificate file using [the tutorial here](https://github.com/MicrosoftDocs/office-docs-powershell/blob/main/exchange/docs-conceptual/app-only-auth-powershell-v2.md), taking note of the addendums below.
+    * The app will require **Global Reader** permission (Referenced in tutorial).
+    * Take a record of the Azure app's **Application (client) ID** as you'll need this later.
+    * Enable Public Client Flows in the Azure App (**Authenication** -> **Allow public client flows**)
+    * Specify a redirect URI (**Authenication** -> **Platform Configurations** -> **Add a platform** -> **Mobile and desktop applications** -> Enable 'https://login.microsoftonline.com/common/oauth2/nativeclient' as a redirect URI.)
+    * When updating the app's Manifest, insert the below code for **requiredResourceAccess** instead of following what the tutorial suggests. The below version also includes permissions for acting as an EWS Application.
         ```
             "requiredResourceAccess": [
             {
@@ -39,9 +40,8 @@ Install-Module -Name ExchangeOnlineManagement -RequiredVersion 2.0.5
             }
         ]
         ```
-    6. Be sure to grant admin consent to your app's permissions (Referenced in tutorial)
-3. Export your certificate password to a CliXml SecureString file. See Create-SecureCertificatePassword.ps1 in the 'Getting Started' folder for an example on how to do this.
-4. You'll also need your O365 Org URL (Needs to end in .onmicrosoft.com). Do find this, Navigate to the Office 365 Admin Center -> Setup -> Domains
+3. Export your certificate password to a CliXml SecureString file. See **Create-SecureCertificatePassword.ps1** in the **Getting Started** folder for an example on how to do this.
+4. You'll also need your Office 365 organization URL (Ends in .onmicrosoft.com). Do find this, navigate to the **Office 365 Admin Center** -> **Setup** -> **Domains**
 ### Example updated batch file with certificate authenication
 ```
 @echo off
@@ -62,10 +62,12 @@ pause
 
 ## Getting Started
 
-1. ~~Install the EWS API here: https://www.microsoft.com/en-us/download/details.aspx?id=42951~~ **Now included as a .DLL in the script (Bin folder)**
-2. Download the latest version of the script here: https://github.com/grahamr975/EWS-Office365-Contact-Sync
-3. ~~Export your Office 365 administrator credentials to a CliXml credential file. See below for an example on how to do this.~~ **Replaced by certificate authenication**
-4. You may need to unblock the included .dll files. To do this, navigate to EWSContacts\Module\bin -> For each .dll file, right click on the file -> Check 'Unblock'
+1. ~~Install the EWS API here: https://www.microsoft.com/en-us/download/details.aspx?id=42951~~<br/>
+    **Now included as a .DLL in the script (Bin folder)**
+3. Download the [latest version of the script here.](https://github.com/grahamr975/EWS-Office365-Contact-Sync)
+4. ~~Export your Office 365 administrator credentials to a CliXml credential file. See below for an example on how to do this.~~<br/>
+    **Replaced by certificate authenication**
+5. You may need to unblock the included .dll files. To do this, navigate to EWSContacts\Module\bin -> For each .dll file, right click on the file -> Check 'Unblock'
 
 4. To test the script, run for a single mailbox in your directory. See below for an example (batch file)
 ```
@@ -104,15 +106,19 @@ pause
 
 ### Prerequisites
 
-- ~~EWS API 2.2 https://www.microsoft.com/en-us/download/details.aspx?id=42951~~ **Now included as a .DLL in the script (Bin folder)**
-- ~~O365 Global Admin Account with **Application Impersonation permissions** (You MUST set this seperately)~~ **Requirement replaced by Azure app**
-- Verify the neccessary Office 365 URLs are whitelisted in your environment. All Microsoft 365 Common URLs with ID#56 on the following page should be allowed: https://docs.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges?view=o365-worldwide
-- Powershell Version 3.0+
-- Think of a unique folder name (Any contacts not in the Global Address List will be deleted from the folder, so don't use 'Contacts' as the name.)
+- ~~EWS API 2.2 https://www.microsoft.com/en-us/download/details.aspx?id=42951~~
+
+    - Now included as a .DLL in the script (Bin folder)
+- ~~O365 Global Admin Account with **Application Impersonation permissions** (You MUST set this seperately)~~
+    
+    - Requirement replaced by Azure app (See above guide on how to set this up.)
+- Verify the neccessary Office 365 URLs are whitelisted in your environment. [All Microsoft 365 Common URLs with ID#56 on this page should be allowed.](https://docs.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges?view=o365-worldwide)
+- Powershell Version 5.0+
+- Think of a unique folder name (Any contacts not in the Global Address List will be deleted from the folder, so I don't recommend using 'Contacts' as the name.)
 
 ## Deployment
 
-See EWSContactSync.ps1 for documentation on optional parameters for filtering conatcts, mailboxes, etc...
+See **EWSContactSync.ps1** for documentation on optional parameters for filtering conatcts, mailboxes, etc...
 
 ## Built With
 
