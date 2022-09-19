@@ -133,6 +133,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 
 * **Ryan Graham** - *Initial work* - [grahamr975](https://github.com/grahamr975)
+* **Glenn Scales** - *EWSContacts Powershell Module* - [gscales](https://github.com/gscales)
 
 See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
 
