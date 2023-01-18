@@ -78,9 +78,9 @@ process {
 		# Delete = Any contact in the user's mailbox that does not have an email address matching any contact in the Global Address List; Contacts with no email address are not deleted.
 		# Update = Any contact in the user's mailbox that has a matching email address with a contact in the Global Address List
 		# Create = Any contact in the Global Address List does not does not have a matching email with a contact in the user's mailbox
-		$MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {!$ContactList.WindowsEmailAddress.ToLower().Contains($_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())}
-		$MailboxContactsToBeUpdated = $ContactList | Where-Object {$MailboxEmailList.Contains($_.WindowsEmailAddress)}
-		$MailboxContactsToBeCreated = $ContactList | Where-Object {!$MailboxEmailList.Contains($_.WindowsEmailAddress)}
+		$MailboxContactsToBeDeleted = $MailboxContacts | Where-Object {$ContactList.WindowsEmailAddress.ToLower() -NotContains $_.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower()}
+		$MailboxContactsToBeUpdated = $ContactList | Where-Object {$MailboxEmailList -Contains $_.WindowsEmailAddress.ToLower()}
+		$MailboxContactsToBeCreated = $ContactList | Where-Object {$MailboxEmailList -NotContains $_.WindowsEmailAddress.ToLower()}
 	}
 
 	#

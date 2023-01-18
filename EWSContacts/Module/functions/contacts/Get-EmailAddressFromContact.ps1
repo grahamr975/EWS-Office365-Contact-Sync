@@ -12,8 +12,10 @@ param (
 	[Parameter(Position = 0, Mandatory = $true)]$Contact
 )
 process {
+		$EmailList = @()
+
 		foreach ($ContactItem in $Contact) {
-			$EmailList += $ContactItem.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address
+			$EmailList += "$($ContactItem.EmailAddresses[[Microsoft.Exchange.WebServices.Data.EmailAddressKey]::EmailAddress1].Address.ToLower())"
 		}
 		return $EmailList
 	}

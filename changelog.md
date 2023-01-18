@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [3.0.1] - 01/16/2023
+## Fixed
+- Corrected behavior where the script would mistake a similar email for the contact's email when sorting the user's contact folder into into the 'Delete', 'Update', or 'Create' logial groups. This also fixes the "Contact parameter is null" error.
+
 ## [3.0.0] - 13/09/2022 (Note: This update may break previous installations...)
 ## Changed
 - Upgraded EWS authenication from ADAL to the MSAL per work from Glenn Scales: https://github.com/gscales/Powershell-Scripts/blob/master/EWSContacts/Update%20for%20the%20ExchangeContacts%20Module%20for%20oAuth%20-%20Support%20for%20Client%20Credentials%20flow.md
