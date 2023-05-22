@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [3.0.2] - 05/22/2023
+## Fixed
+- Corrected inadvertent case sensitivty on the contact's email address when using the ExcludeSharedMailboxContacts switch by changing the '.Contains
+ method to '-Contains'.
+
 ## [3.0.1] - 01/16/2023
 ## Fixed
 - Corrected behavior where the script would mistake a similar email for the contact's email when sorting the user's contact folder into into the 'Delete', 'Update', or 'Create' logial groups. This also fixes the "Contact parameter is null" error.

@@ -63,8 +63,8 @@ process {
 		if ($ExcludeSharedMailboxContacts) {
 			$DirectoryList = $(Get-EXOMailbox -ResultSize unlimited -PropertySets Minimum,AddressList | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"})
 			$EmailAddressList = $DirectoryList.PrimarySMTPAddress
-			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList.Contains($_.WindowsEmailAddress)}
-		} else {
+			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone | Where-Object {$EmailAddressList -Contains $_.WindowsEmailAddress}
+			} else {
 			$ContactList = $ContactList | Select-Object DisplayName,FirstName,LastName,Title,Company,Department,WindowsEmailAddress,Phone,MobilePhone
 		}
 		
