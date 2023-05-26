@@ -264,13 +264,23 @@
 		{
 			$Contact.CompanyName = $CompanyName
 		}
-		if ($BusinssPhone -ne "")
+		if ($BusinssPhone -and $BusinssPhone -ne "")
 		{
 			$Contact.PhoneNumbers[[Microsoft.Exchange.WebServices.Data.PhoneNumberKey]::BusinessPhone] = $BusinssPhone
+		} else {
+			# Write-Host "Removing Business Telephone..."
+			# https://interoperability.blob.core.windows.net/files/MS-OXPROPS/%5bMS-OXPROPS%5d.pdf
+			$PidTagBusinessTelephoneNumber = new-object Microsoft.Exchange.WebServices.Data.ExtendedPropertyDefinition(0x3A08,[Microsoft.Exchange.WebServices.Data.MapiPropertyType]::String);
+			$Contact.RemoveExtendedProperty($PidTagBusinessTelephoneNumber) | Out-Null
 		}
-		if ($MobilePhone -ne "")
+		if ($MobilePhone -and $MobilePhone -ne "")
 		{
 			$Contact.PhoneNumbers[[Microsoft.Exchange.WebServices.Data.PhoneNumberKey]::MobilePhone] = $MobilePhone
+		} else {
+			# Write-Host "Removing Mobile Telephone..."
+			# https://interoperability.blob.core.windows.net/files/MS-OXPROPS/%5bMS-OXPROPS%5d.pdf
+			$PidTagMobileTelephoneNumber = new-object Microsoft.Exchange.WebServices.Data.ExtendedPropertyDefinition(0x3A1C,[Microsoft.Exchange.WebServices.Data.MapiPropertyType]::String);
+			$Contact.RemoveExtendedProperty($PidTagMobileTelephoneNumber) | Out-Null
 		}
 		if ($HomePhone -ne "")
 		{

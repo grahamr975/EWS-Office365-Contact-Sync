@@ -64,6 +64,14 @@
 				{
 					$service.ImpersonatedUserId = new-object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress, $MailboxName)
 					$psPropset = new-object Microsoft.Exchange.WebServices.Data.PropertySet([Microsoft.Exchange.WebServices.Data.BasePropertySet]::FirstClassProperties)
+					
+					### Add the extended properties for the business and mobile phone so they can be removed later, if needed
+					$PidTagBusinessTelephoneNumber = new-object Microsoft.Exchange.WebServices.Data.ExtendedPropertyDefinition(0x3A08,[Microsoft.Exchange.WebServices.Data.MapiPropertyType]::String);
+					$PidTagMobileTelephoneNumber = new-object Microsoft.Exchange.WebServices.Data.ExtendedPropertyDefinition(0x3A1C,[Microsoft.Exchange.WebServices.Data.MapiPropertyType]::String);
+					$psPropset.Add($PidTagBusinessTelephoneNumber)
+					$psPropset.Add($PidTagMobileTelephoneNumber)
+					###
+
 					$psPropset.RequestedBodyType = [Microsoft.Exchange.WebServices.Data.BodyType]::Text
 					[Void]$service.LoadPropertiesForItems($fiItems, $psPropset)
 					foreach ($Item in $fiItems.Items)
