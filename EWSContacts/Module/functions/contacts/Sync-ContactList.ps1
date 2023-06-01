@@ -31,7 +31,7 @@ param (
 	$Mailbox,
 
 	[Parameter(Position = 1, Mandatory=$True)]
-    [System.IO.FileInfo]
+    #[System.IO.FileInfo]
     $CertificatePath,
 
     [Parameter(Position = 2, Mandatory=$True)]
@@ -51,9 +51,16 @@ param (
 	$FolderName,
 
 	[Parameter(Position = 6, Mandatory = $true)]
-	$ContactList
+	$ContactList,
+
+	[Parameter(Position = 7, Mandatory = $false)]
+	$ModulePath
 )
 process {
+	if ($ModulePath) {
+		Import-Module $ModulePath -Force
+	}
+
 	Write-Log -Message "Beginning contact sync for $($Mailbox)'s mailbox"
 
 	# Create EWS Service object
