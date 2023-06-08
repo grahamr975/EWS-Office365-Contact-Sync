@@ -39,8 +39,8 @@ process {
 	# $Null = @() is a workaround for this function returning a random filename such as "tmp_z1ci55dv.kke" at the start of the output....
 	$Null = @(
 		# Connect to Office 365 Exchange Server using a Remote Session
-		Connect-ExchangeOnline -ConnectionUri $ConnectionUri -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -AppId $ClientID -Organization $ExchangeOrg
-			$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"}).PrimarySMTPAddress
+	Connect-ExchangeOnline -ConnectionUri $ConnectionUri -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -AppId $ClientID -Organization $ExchangeOrg
+			$DirectoryList = $(Get-EXOMailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"}).PrimarySMTPAddress
     Disconnect-ExchangeOnline -Confirm:$false
 	)
 
