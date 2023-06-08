@@ -108,7 +108,7 @@ Start-Transcript -OutputDirectory $LogPath -NoClobber
 
 # Import Exchange Contacts module
 Import-Module .\EWSContacts\Module\ExchangeContacts.psm1 -Force
-Import-Module ExchangeOnlineManagement -RequiredVersion 2.0.5 -Force
+Import-Module ExchangeOnlineManagement -RequiredVersion 3.1.0 -Force
 
 # Import the Exchange Certificate Password
 [Security.SecureString]$CertificatePassword = Import-CliXml -Path "$CertificatePasswordPath"
