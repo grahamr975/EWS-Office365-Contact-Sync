@@ -6,12 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
-## [3.1.1] - 05/26/2023
+## [3.1.0] - 05/26/2023
 ## Added
 - Experimental Multi-Thread.ps1 that can be used in place of the EWSContactSync.ps1 script. This alternative version uses PowerShell Jobs to run top to 10 mailbox syncs at once.
 
-## [3.1.0] - 05/26/2023
-## Changed
+## [3.0.3] - 05/26/2023
+## Fixed
 - The script can now remove phone numbers (Business/Mobile) from contacts
 
 ## [3.0.2] - 05/22/2023
