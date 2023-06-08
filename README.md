@@ -11,9 +11,9 @@ Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to
 - Authenticates using a AzureApp & certificate based authenication (See guide below)
 
 ## Getting Started
-1. Install the Exchange Online Powershell V2
+1. Install the Exchange Online Powershell V3
     ```
-    Install-Module -Name ExchangeOnlineManagement -RequiredVersion 2.0.5
+    Install-Module -Name ExchangeOnlineManagement -RequiredVersion 3.1.0 -Force
     ```
 2. Create an Azure app & certificate file using [the tutorial here](https://github.com/MicrosoftDocs/office-docs-powershell/blob/main/exchange/docs-conceptual/app-only-auth-powershell-v2.md), taking note of the differences below.
     * The app will require **Global Reader** permission (Referenced in tutorial).
