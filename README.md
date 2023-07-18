@@ -11,9 +11,9 @@ Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to
 - Authenticates using a AzureApp & certificate based authenication (See guide below)
 
 ## Getting Started
-1. Install the Exchange Online Powershell V2
+1. Install the Exchange Online Powershell V3.2.0
     ```
-    Install-Module -Name ExchangeOnlineManagement -RequiredVersion 2.0.5
+    Install-Module -Name ExchangeOnlineManagement -RequiredVersion 3.2.0 -Force
     ```
 2. Create an Azure app & certificate file using [the tutorial here](https://github.com/MicrosoftDocs/office-docs-powershell/blob/main/exchange/docs-conceptual/app-only-auth-powershell-v2.md), taking note of the differences below.
     * The app will require **Global Reader** permission (Referenced in tutorial).
@@ -93,7 +93,7 @@ See **EWSContactSync.ps1** for documentation on optional parameters for filterin
 
 * [Powershell 5.0](https://github.com/PowerShell/PowerShell) - The main language used
 * [EWS](https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/ews-reference-for-exchange) - API for reading and writing contacts. This is included with the script as a .dll.
-* [ExchangeOnline Powershell](https://www.powershellgallery.com/packages/ExchangeOnlineManagement/2.0.5) - Used to fetch contact and user mailbox data
+* [ExchangeOnline Powershell](https://www.powershellgallery.com/packages/ExchangeOnlineManagement/3.2.0) - Used to fetch contact and user mailbox data
 
 ## Versioning
 

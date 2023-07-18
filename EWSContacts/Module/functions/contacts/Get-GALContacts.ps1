@@ -54,7 +54,7 @@ param (
 process {
 	try {
 		# Connect to Office 365 Exchange Server using a Remote Session
-        Connect-ExchangeOnline -ConnectionUri $ConnectionUri -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -AppId $ClientID -Organization $ExchangeOrg
+        Connect-ExchangeOnline -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -AppId $ClientID -Organization $ExchangeOrg
 		
 		# Import Global Address List into Powershell from Office 365 Exchange as an array
 		$ContactList = Get-User -ResultSize unlimited 
