@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [4.0.0] - 07/18/2023
+## Changed
+- Migrated to REST API ExchangeOnline V3.2.0 due to the depreciation of remote powershell. Please see the latest README.md for updated instructions.
+
 ## [3.1.1] - 05/26/2023
 ## Added
 - Experimental Multi-Thread.ps1 that can be used in place of the EWSContactSync.ps1 script. This alternative version uses PowerShell Jobs to run top to 10 mailbox syncs at once.
