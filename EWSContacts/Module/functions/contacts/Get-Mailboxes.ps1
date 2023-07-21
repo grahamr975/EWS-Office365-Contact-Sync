@@ -40,7 +40,7 @@ process {
 	$Null = @(
 		# Connect to Office 365 Exchange Server using a Remote Session
 	Connect-ExchangeOnline -CertificateFilePath $CertificatePath -CertificatePassword $CertificatePassword -AppId $ClientID -Organization $ExchangeOrg
-			$DirectoryList = $(Get-EXOMailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"}).PrimarySMTPAddress
+			$DirectoryList = $(Get-Mailbox -ResultSize unlimited | Where-Object {$_.HiddenFromAddressListsEnabled -Match "False"}).PrimarySMTPAddress
     Disconnect-ExchangeOnline -Confirm:$false
 	)
 
