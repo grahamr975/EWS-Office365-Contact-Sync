@@ -116,7 +116,7 @@
 				$certificateObject = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList $CertificateFilePath, $CertificatePassword , $exVal
 				$domain = $MailboxName.Split("@")[1]
 				$Scope = "https://outlook.office365.com/.default"
-				$TenantId = (Invoke-WebRequest https://login.windows.net/$domain/v2.0/.well-known/openid-configuration | ConvertFrom-Json).token_endpoint.Split('/')[3]
+				$TenantId = (Invoke-WebRequest https://login.windows.net/$domain/v2.0/.well-known/openid-configuration -UseBasicParsing | ConvertFrom-Json).token_endpoint.Split('/')[3]
 				$app =  [Microsoft.Identity.Client.ConfidentialClientApplicationBuilder]::Create($ClientId).WithCertificate($certificateObject).WithTenantId($TenantId).Build()
 				$Scopes = New-Object System.Collections.Generic.List[string]
 				$Scopes.Add($Scope)
