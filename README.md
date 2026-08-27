@@ -1,99 +1,113 @@
-# EWS Contact Sync
-Utilizes both Exchange Web Services and Office 365 Remote PowerShell Services to sync your Global Address List to any/every user in the directory.
+# Microsoft Graph Contact Sync
+
+Synchronize Microsoft Entra directory contacts into a dedicated Outlook contact
+folder for one or more Exchange Online mailboxes. This is a Microsoft Graph-only
+rewrite of the former EWS sync script.
+
+After the first sync, uses SQL Lite to cache the contact state of each mailbox. This way, the script won't have to re-read each's mailboxes contact list on future runs. This caching significantly improves the sync duration after the first run.
 
 **Why would I want to use this?** iPhone/Android devices don't currently support offline Global Address List synchronization. By loading the Global Address List contacts into a folder within user's mailbox, you can circumvent this limitation.
 
-**Features**
-- Fetch a list of contacts using the Office 365 Directory
-- Import the list of contacts into a specified user's Office 365 mailbox
-- You can run the sync for any number of users
-- Specify a custom contact folder
-- Authenticates using a AzureApp & certificate based authenication (See guide below)
+## Prerequisites
 
-## Getting Started
-1. Install the Exchange Online Powershell V3.2.0
-    ```
-    Install-Module -Name ExchangeOnlineManagement -RequiredVersion 3.2.0 -Force
-    ```
-2. Create an Azure app & certificate file using [the tutorial here](https://github.com/MicrosoftDocs/office-docs-powershell/blob/main/exchange/docs-conceptual/app-only-auth-powershell-v2.md), taking note of the differences below.
-    * The app will require **Global Reader** permission (Referenced in tutorial).
-    * Take a record of the Azure app's **Application (client) ID** as you'll need this later.
-    * Enable Public Client Flows in the Azure App (**Authenication** -> **Allow public client flows**)
-    * Specify a redirect URI (**Authenication** -> **Platform Configurations** -> **Add a platform** -> **Mobile and desktop applications** -> Enable 'https://login.microsoftonline.com/common/oauth2/nativeclient' as a redirect URI.)
-    * When updating the app's Manifest, insert the below code for **requiredResourceAccess** instead of following what the tutorial suggests. The below version also includes permissions for acting as an EWS Application. We'll need EWS to manage the contacts in each user's mailbox.
-        ```
-            "requiredResourceAccess": [
-            {
-                "resourceAppId": "00000002-0000-0ff1-ce00-000000000000",
-                "resourceAccess": [
-                    {
-                        "id": "dc50a0fb-09a3-484d-be87-e023b12c6440",
-                        "type": "Role"
-                    },
-                    {
-                        "id": "dc890d15-9560-4a4c-9b7f-a736ec74ec40",
-                        "type": "Role"
-                    }
-                ]
-            }
-        ]
-        ```
-3. Export your certificate password to a CliXml SecureString file. See **Create-SecureCertificatePassword.ps1** in the **Getting Started** folder for an example on how to do this.
-4. You'll also need your Office 365 organization URL (Ends in .onmicrosoft.com). Do find this, navigate to the **Office 365 Admin Center** -> **Setup** -> **Domains**
-5. Download the [latest version of the script here.](https://github.com/grahamr975/EWS-Office365-Contact-Sync)
-6. You may need to unblock the script's included .dll files. To do this, navigate to EWSContacts\Module\bin -> For each .dll file, right click on the file -> Check 'Unblock'
+1. PowerShell 5.1+ or PowerShell 7+.
+2. Install the required Graph authentication module for the account running the job:
 
-7. To test the script, run for a single mailbox in your directory. See below for an example (batch file)
-    ```
-    @echo off
-    cd "%~dp0EWS-Office365-Contact-Sync"
+   ```powershell
+   Install-Module Microsoft.Graph.Authentication -Scope CurrentUser
+   ```
 
-    PowerShell.exe -ExecutionPolicy Bypass ^
-    -File "%CD%\EWSContactSync.ps1" ^
-    -CertificatePath "C:\Users\johndoe\Desktop\automation-cert.pfx" ^
-    -CertificatePasswordPath "C:\Users\johndoe\Desktop\SecureCertificatePassword.cred" ^
-    -ClientID "36ee4c6c-0812-40a2-b820-b22ebd02bce3" ^
-    -FolderName "Directory Contacts" ^
-    -LogPath "%~dp0Logs" ^
-    -MailboxList john.doe@mycompany.com ^
-    -ExchangeOrg "mycompany.onmicrosoft.com" ^
-    -ModernAuth
-    pause
-    ```
-8. Once you're ready, specify DIRECTORY for MailboxList. This will sync the contacts for all users in your directory. See below for an example (batch file)
-    ```
-    @echo off
-    cd "%~dp0EWS-Office365-Contact-Sync"
+3. Create a Microsoft Entra app registration & certificate using [the tutorial here](https://github.com/MicrosoftDocs/office-docs-powershell/blob/main/exchange/docs-conceptual/app-only-auth-powershell-v2.md), upload the certificate to it, and
+   grant tenant-wide admin consent for these **application** permissions:
 
-    PowerShell.exe -ExecutionPolicy Bypass ^
-    -File "%CD%\EWSContactSync.ps1" ^
-    -CertificatePath "C:\Users\johndoe\Desktop\automation-cert.pfx" ^
-    -CertificatePasswordPath "C:\Users\johndoe\Desktop\SecureCertificatePassword.cred" ^
-    -ClientID "36ee4c6c-0812-40a2-b820-b22ebd02bce3" ^
-    -FolderName "Directory Contacts" ^
-    -LogPath "%~dp0Logs" ^
-    -MailboxList DIRECTORY ^
-    -ExchangeOrg "mycompany.onmicrosoft.com" ^
-    -ModernAuth
-    pause
-    ```
+   | Permission | Why |
+   | --- | --- |
+   | `Contacts.ReadWrite` | Create, update, and delete contacts in target mailboxes. |
+   | `User.Read.All` | Read directory users and resolve `DIRECTORY` mailboxes. |
+   | `OrgContact.Read.All` | Required only with `-IncludeNonUserContacts`. |
 
-### Prerequisites
+   The app can be restricted to an approved mailbox scope by using Exchange
+   Online application RBAC. Do that before using `DIRECTORY` in production.
 
-- Azure app with EWS and User read permissions (See above guide on how to set this up.)
-- Verify the neccessary Office 365 URLs are whitelisted in your environment. [All Microsoft 365 Common URLs with ID#56 on this page should be allowed.](https://docs.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges?view=o365-worldwide)
-- Powershell Version 5.0+
-- Think of a unique folder name (Any contacts not in the Global Address List will be deleted from the folder, so I don't recommend using 'Contacts' as the name.)
+4. Export the PFX password as a CliXml secure string on the same Windows account
+   that will run the scheduled task. The existing
+   `Getting Started/Create-SecureCertificatePassword.ps1` helper can be used.
 
-## Deployment
+5. Install the SQL Lite Powershell Module & initialize the local sync database. The size of this database file can go up to a few GB, depending on the size of your Microsoft tenet.
+```powershell
+Install-Module PSSQLite -Scope AllUsers
 
-See **EWSContactSync.ps1** for documentation on optional parameters for filtering conatcts, mailboxes, etc...
+.\Getting Started\Initialize-GraphContactSyncDatabase.ps1 `
+  -DatabasePath 'C:\ContactSync\GraphContactSync.db'
+```
 
-## Built With
+6. Create a unique folder name for the script to use. The named folder is managed as a whole. Contacts no longer present in the chosen
+directory source are deleted from that folder, so do not use a personal contacts
+folder as the target.
 
-* [Powershell 5.0](https://github.com/PowerShell/PowerShell) - The main language used
-* [EWS](https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/ews-reference-for-exchange) - API for reading and writing contacts. This is included with the script as a .dll.
-* [ExchangeOnline Powershell](https://www.powershellgallery.com/packages/ExchangeOnlineManagement/3.2.0) - Used to fetch contact and user mailbox data
+
+## Run
+
+```powershell
+.\EWSContactSync.ps1 `
+  -TenantId 'contoso.onmicrosoft.com' `
+  -ClientId '00000000-0000-0000-0000-000000000000' `
+  -CertificatePath 'C:\Certs\contact-sync.pfx' `
+  -CertificatePasswordPath 'C:\Certs\contact-sync-password.cred' `
+  -FolderName 'Company Contacts' `
+  -MailboxList 'person@contoso.com' `
+  -DatabasePath 'C:\ContactSync\GraphContactSync.db' `
+  -LogPath 'C:\ContactSync\Logs'
+```
+
+## Performance and state
+
+The first run reads the directory and each managed contact folder. It saves
+source contact fingerprints, mailbox contact IDs, and a Microsoft Graph user
+delta link to SQLite. Later runs read only directory
+changes and create, update, or delete only affected contacts. Keep this state
+database in a protected, persistent folder and do not delete it unless you intend
+to perform a full reconciliation.
+
+Changing any source filter (`-ExcludeSharedMailboxContacts`,
+`-ExcludeContactsWithoutPhoneNumber`, or `-IncludeNonUserContacts`) automatically
+rebuilds the source cache on the next run. Contacts excluded by the new filter
+are removed from the managed folder.
+
+Graph write calls are sent as batches of up to 20 operations. The script honors
+`Retry-After` for throttled and transient batch responses. Adjust the batch size
+with `-BatchSize` (1–20) only if your tenant needs a lower rate.
+
+For scheduled runs, use an explicit `-MailboxList` or a CSV file:
+
+```csv
+Mailbox
+person1@contoso.com
+person2@contoso.com
+```
+
+```powershell
+.\EWSContactSync.ps1 ... -MailboxCsvPath 'C:\ContactSync\Mailboxes.csv'
+```
+
+`DIRECTORY` is still available as an option you can pass as a string to the MailBoxList paramter. It
+attempts every enabled member user with an email address. `-ExcludeSharedMailboxContacts`
+omits unlicensed directory users; Graph does not expose Exchange's
+`HiddenFromAddressListsEnabled` property, so that legacy filter cannot be reproduced exactly.
+
+Optional switches retained from the EWS version:
+
+- `-ExcludeContactsWithoutPhoneNumber`
+- `-ExcludeSharedMailboxContacts`
+- `-IncludeNonUserContacts` (Microsoft Entra organizational contacts)
+
+`Multi-Threaded.ps1` was removed as an option due to graph-API throttling limits. EWS was a bit more forgiving.
+
+## Graph API Documentation
+
+Microsoft documents the contact API and its required application permission in
+[Create contact](https://learn.microsoft.com/en-us/graph/api/user-post-contacts?view=graph-rest-1.0), and documents the optional organizational-contact source in
+[List orgContacts](https://learn.microsoft.com/en-us/graph/api/orgcontact-list?view=graph-rest-1.0).
 
 ## Versioning
 
@@ -102,15 +116,11 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 
 * **Ryan Graham** - *Initial work* - [grahamr975](https://github.com/grahamr975)
-* **Glenn Scales** - *EWSContacts Powershell Module* - [gscales](https://github.com/gscales)
 
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+## Acknowledgments
+
+* Thanks to gscales for his work on the EWSContacts powershell module (now obsoleted). This script uses a modified version of their module. https://github.com/gscales/Powershell-Scripts/tree/master/EWSContacts
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
-
-* Thanks to gscales for his work on the EWSContacts powershell module. This script uses a modified version of their module. https://github.com/gscales/Powershell-Scripts/tree/master/EWSContacts
-* Thanks to [alexisc182](https://github.com/alexisc182) for their work on documenting the needed Office 365 URLs for whitelisting

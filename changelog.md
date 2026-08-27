@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [5.0.0] - 07/18/2023
+## Changed
+- !!! Major upgrade from EWS to Graph API, please see new README.md
+- Replaced Exchange Web Services, the bundled EWS module, and Exchange Online
+- Remote PowerShell with Microsoft Graph.
+- Writes are now batched and retried using Graph `Retry-After` guidance.
+- Subsequent runs skip unchanged contacts and avoid full target-folder scans.
+
 ## [4.0.0] - 07/18/2023
 ## Changed
 - Migrated to REST API ExchangeOnline V3.2.0 due to the depreciation of remote powershell. Please see the latest README.md for updated instructions.
