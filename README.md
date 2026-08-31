@@ -1,6 +1,6 @@
-# Microsoft Graph Contact Sync
+# Microsoft Graph Contact Sync (Major 2026 Upgrade)
 
-Synchronize Microsoft Entra directory contacts into a dedicated Outlook contact
+Synchronize your Office 365 directory contacts into a dedicated Outlook contact
 folder for one or more Exchange Online mailboxes. This is a Microsoft Graph-only
 rewrite of the former EWS sync script.
 
