@@ -20,6 +20,8 @@ param (
     [Parameter(Mandatory)] [System.IO.FileInfo] $CertificatePasswordPath,
     # Dedicated Outlook contact folder that this script is allowed to manage.
     [Parameter(Mandatory)] [string] $FolderName,
+    # Category name used to identify duplicate managed contacts outside the
+    # dedicated folder. When omitted, the contact-folder name is used.
     # One or more target mailbox email addresses or Entra user IDs.
     [string[]] $MailboxList,
     # Optional CSV alternative. It needs a Mailbox or UserPrincipalName column.
@@ -28,6 +30,9 @@ param (
     [string] $LogPath,
     # Local SQLite database created by Initialize-GraphContactSyncDatabase.ps1.
     [string] $DatabasePath = 'C:\ContactSync\GraphContactSync.db',
+    # Force a complete directory read and mailbox-cache reconciliation after
+    # this many days. Normal runs use Graph delta and SQLite mappings.
+    [ValidateRange(1, 3650)] [int] $FullDirectoryRefreshDays = 30,
     # Maximum Graph operations in one JSON batch. Graph permits at most 20.
     [ValidateRange(1, 20)] [int] $BatchSize = 20,
     # Number of times to retry a throttled or temporary Graph error.
@@ -45,6 +50,7 @@ $ErrorActionPreference = 'Stop'
 # A caller must choose exactly one way to identify target mailboxes.
 if ((@($MailboxList).Count -eq 0) -and (-not $MailboxCsvPath)) { throw 'Specify -MailboxList or -MailboxCsvPath.' }
 if ((@($MailboxList).Count -gt 0) -and $MailboxCsvPath) { throw 'Use either -MailboxList or -MailboxCsvPath, not both.' }
+$directoryMode = (@($MailboxList).Count -eq 1 -and $MailboxList[0].ToUpperInvariant() -eq 'DIRECTORY')
 
 function Write-SyncLog {
     # Write the same message to the console and, when configured, to a log file.
@@ -69,6 +75,17 @@ function Get-OptionalProperty {
 function Get-GraphPages {
     # Graph lists can span multiple pages. Keep following @odata.nextLink until
     # Graph says there are no more pages, then return one combined list.
+    param([Parameter(Mandatory)] [string] $Uri)
+    $items = @()
+    do {
+        $response = Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
+        if ($null -ne $response.value) { $items += @($response.value) }
+        $Uri = Get-OptionalProperty -Object $response -Name '@odata.nextLink'
+    } while ($Uri)
+    $items
+}
+
+function Get-BetaGraphPages {
     param([Parameter(Mandatory)] [string] $Uri)
     $items = @()
     do {
@@ -162,7 +179,7 @@ function Get-State {
     $source = @(Invoke-SqliteQuery -DataSource $DatabasePath -Query 'SELECT ContactJson FROM SourceContact' | ForEach-Object { $_.ContactJson | ConvertFrom-Json })
     # Changes is empty after a database read. Get-SourceState adds only the
     # users returned by this run's Graph delta feed.
-    [pscustomobject]@{ FilterSignature = $metadata['FilterSignature']; UserDeltaLink = $metadata['UserDeltaLink']; SourceContacts = $source; DesiredContacts = @(); SourceChanges = @(); RebuildSourceCache = $false }
+    [pscustomobject]@{ FilterSignature = $metadata['FilterSignature']; UserDeltaLink = $metadata['UserDeltaLink']; LastFullDirectoryRefreshUtc = $metadata['LastFullDirectoryRefreshUtc']; SourceContacts = $source; DesiredContacts = @(); SourceChanges = @(); RebuildSourceCache = $false; RebuildMailboxCache = $false }
 }
 
 function Save-State { param($State)
@@ -189,8 +206,11 @@ function Save-State { param($State)
     } else {
         Write-SyncLog -Message 'Directory cache is unchanged; skipped source-cache database rewrite.'
     }
+    # Record the successful full refresh only after every target mailbox has
+    # completed. This prevents a failed run from postponing the next refresh.
+    if ($State.RebuildSourceCache) { $State.LastFullDirectoryRefreshUtc = $now }
     # Always retain the newest Graph delta token, even when no users changed.
-    foreach ($pair in @{ FilterSignature=$State.FilterSignature; UserDeltaLink=$State.UserDeltaLink }.GetEnumerator()) {
+    foreach ($pair in @{ FilterSignature=$State.FilterSignature; UserDeltaLink=$State.UserDeltaLink; LastFullDirectoryRefreshUtc=$State.LastFullDirectoryRefreshUtc }.GetEnumerator()) {
         # Use two older-SQLite-compatible statements instead of modern UPSERT syntax.
         Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT OR IGNORE INTO SyncMetadata (MetadataKey,MetadataValue,UpdatedUtc) VALUES (@key,@value,@now)' -SqlParameters @{ key=$pair.Key; value=$pair.Value; now=$now } | Out-Null
         Invoke-SqliteQuery -DataSource $DatabasePath -Query 'UPDATE SyncMetadata SET MetadataValue=@value,UpdatedUtc=@now WHERE MetadataKey=@key' -SqlParameters @{ key=$pair.Key; value=$pair.Value; now=$now } | Out-Null
@@ -234,7 +254,7 @@ function Get-SourceState {
         if ($State.UserDeltaLink) {
             # Delta links expire occasionally. Clearing it safely triggers one full rebuild.
             Write-SyncLog -Level WARN -Message 'Saved user delta token was rejected; rebuilding the directory cache.'
-            $State.UserDeltaLink = $null; $State.SourceContacts = @(); $State.SourceChanges = @(); $State.RebuildSourceCache = $true; return Get-SourceState $State
+            $State.UserDeltaLink = $null; $State.SourceContacts = @(); $State.SourceChanges = @(); $State.RebuildSourceCache = $true; $State.RebuildMailboxCache = $true; return Get-SourceState $State
         }
         throw
     }
@@ -298,7 +318,7 @@ function Save-MailboxChanges {
         } elseif ($operation.Action -eq 'Create') {
             # Graph returned the new, mailbox-specific Outlook contact ID.
             Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT OR REPLACE INTO MailboxContact (MailboxId,Email,ContactId,Fingerprint,UpdatedUtc) VALUES (@mailbox,@email,@contact,@fingerprint,@now)' -SqlParameters @{ mailbox=$MailboxState.MailboxId; email=$operation.Email; contact=$result.Response.body.id; fingerprint=$operation.Source.Fingerprint; now=$now } | Out-Null
-        } else {
+        } elseif ($operation.Action -eq 'Update') {
             # An update retains the same Outlook contact ID; only its applied
             # fingerprint needs to be advanced to the source fingerprint.
             Invoke-SqliteQuery -DataSource $DatabasePath -Query 'UPDATE MailboxContact SET Fingerprint=@fingerprint,UpdatedUtc=@now WHERE MailboxId=@mailbox AND Email=@email' -SqlParameters @{ mailbox=$MailboxState.MailboxId; email=$operation.Email; fingerprint=$operation.Source.Fingerprint; now=$now } | Out-Null
@@ -321,10 +341,26 @@ function New-GraphContactBody {
 function Get-OrCreateFolder {
     # Reuse the saved folder ID when available. On the first run, find the folder
     # by name, or create it if it does not yet exist in the mailbox.
-    param([string] $MailboxId, $MailboxState)
-    if ($MailboxState -and $MailboxState.FolderId) { return $MailboxState.FolderId }
+    param([string] $MailboxId, $MailboxState, [int] $DesiredContactCount)
     $user = ConvertTo-GraphPath $MailboxId
-    $folder = Get-GraphPages -Uri "/v1.0/users/$user/contactFolders?`$select=id,displayName" | Where-Object { $_.displayName -eq $FolderName } | Select-Object -First 1
+    if ($MailboxState -and $MailboxState.FolderId) {
+        try {
+            Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/users/$user/contactFolders/$($MailboxState.FolderId)?`$select=id" -OutputType PSObject | Out-Null
+            return $MailboxState.FolderId
+        } catch {
+            Write-SyncLog -Level WARN -Message "Saved managed folder ID for $MailboxId no longer exists; locating '$FolderName' again."
+        }
+    }
+    $candidates = @(Get-BetaGraphPages -Uri "https://graph.microsoft.com/beta/users/$user/contactFolders?`$select=id,displayName" | Where-Object { $_.displayName -eq $FolderName })
+    $folder = $null
+    if ($candidates.Count -gt 0) {
+        $folder = $candidates | ForEach-Object {
+            $count = @(Get-BetaGraphPages -Uri "https://graph.microsoft.com/beta/users/$user/contactFolders/$($_.id)/contacts?`$select=id").Count
+            [pscustomobject]@{ Folder=$_; Count=$count; Difference=[Math]::Abs($count - $DesiredContactCount) }
+        } | Sort-Object Difference, Count | Select-Object -First 1
+        Write-SyncLog -Message "Selected '$FolderName' folder $($folder.Folder.id) with $($folder.Count) contact(s), closest to the $DesiredContactCount directory contact(s)."
+        $folder = $folder.Folder
+    }
     if (-not $folder) { $folder = Invoke-MgGraphRequest -Method POST -Uri "/v1.0/users/$user/contactFolders" -Body (@{ displayName = $FolderName } | ConvertTo-Json) -ContentType 'application/json' -OutputType PSObject }
     $folder.id
 }
@@ -336,8 +372,13 @@ function Initialize-MailboxState {
     $user = ConvertTo-GraphPath $MailboxId
     $select = 'id,displayName,givenName,surname,jobTitle,companyName,department,emailAddresses,businessPhones,mobilePhone'
     $existing = Get-GraphPages -Uri "/v1.0/users/$user/contactFolders/$FolderId/contacts?`$select=$select"
-    $contacts = @()
-    foreach ($item in $existing) {
+    # SQLite maps a source email to one mailbox-specific contact ID. A user can
+    # manually create duplicate Outlook contacts with the same email, so retain
+    # one deterministic contact in the map and collect the extra copies for
+    # removal during this managed-folder reconciliation.
+    $contactsByEmail = @{}
+    $duplicateContactIds = @()
+    foreach ($item in @($existing | Sort-Object { [string](Get-OptionalProperty -Object $_ -Name 'id') })) {
         # Use the first email address as the key because the sync uses email as
         # its matching identity between the directory and Outlook contacts.
         $emailAddress = @(Get-OptionalProperty -Object $item -Name 'emailAddresses') | Select-Object -First 1
@@ -345,10 +386,43 @@ function Initialize-MailboxState {
         if ($email) {
             $email = [string]$email
             $model = [pscustomobject]@{ DisplayName = Get-OptionalProperty $item 'displayName'; FirstName = Get-OptionalProperty $item 'givenName'; LastName = Get-OptionalProperty $item 'surname'; Email = $email; JobTitle = Get-OptionalProperty $item 'jobTitle'; CompanyName = Get-OptionalProperty $item 'companyName'; Department = Get-OptionalProperty $item 'department'; BusinessPhones = @(Get-OptionalProperty $item 'businessPhones'); MobilePhone = Get-OptionalProperty $item 'mobilePhone' }
-            $contacts += [pscustomobject]@{ Email = $email.ToLowerInvariant(); ContactId = Get-OptionalProperty $item 'id'; Fingerprint = Get-ContactFingerprint $model }
+            $emailKey = $email.ToLowerInvariant()
+            if ($contactsByEmail.ContainsKey($emailKey)) {
+                $duplicateContactIds += [string](Get-OptionalProperty -Object $item -Name 'id')
+                Write-SyncLog -Level WARN -Message "Duplicate contact for $emailKey was found in $MailboxId. The extra copy will be deleted."
+            } else {
+                $contactsByEmail[$emailKey] = [pscustomobject]@{ Email = $emailKey; ContactId = Get-OptionalProperty $item 'id'; Fingerprint = Get-ContactFingerprint $model }
+            }
         }
     }
-    [pscustomobject]@{ MailboxId = $MailboxId; FolderId = $FolderId; Contacts = @($contacts) }
+    [pscustomobject]@{ MailboxId = $MailboxId; FolderId = $FolderId; Contacts = @($contactsByEmail.Values); DuplicateContactIds = @($duplicateContactIds) }
+}
+
+function Find-DuplicateFolders {
+    param([string] $MailboxId, [string] $ManagedFolderId)
+    $user = ConvertTo-GraphPath $MailboxId
+    foreach ($folder in Get-BetaGraphPages -Uri "https://graph.microsoft.com/beta/users/$user/contactFolders?`$select=id,displayName") {
+        if ($folder.id -ne $ManagedFolderId -and $folder.displayName -eq $FolderName) {
+            [pscustomobject]@{ Id=$folder.id; Name=$folder.displayName }
+        }
+    }
+}
+
+function Remove-DuplicateFolder {
+    param([string] $MailboxId, $Folder)
+    $user = ConvertTo-GraphPath $MailboxId
+    $base = "https://graph.microsoft.com/beta/users/$user/contactFolders/$($Folder.Id)"
+    # Legacy folders discovered only by beta can reject a v1 folder DELETE.
+    # Remove their contacts individually first; then remove the empty folder.
+    foreach ($contact in Get-BetaGraphPages -Uri "$base/contacts?`$select=id") {
+        Invoke-MgGraphRequest -Method DELETE -Uri "$base/contacts/$($contact.id)" | Out-Null
+    }
+    try {
+        Invoke-MgGraphRequest -Method DELETE -Uri $base | Out-Null
+        Write-SyncLog -Message "Removed duplicate managed folder '$($Folder.Name)' ($($Folder.Id)) from $MailboxId."
+    } catch {
+        Write-SyncLog -Level WARN -Message "Removed contacts from duplicate folder '$($Folder.Name)' but Exchange kept the empty folder: $($_.Exception.Message)"
+    }
 }
 
 function Invoke-GraphBatch {
@@ -402,9 +476,11 @@ function Sync-Mailbox {
     # IDs and fingerprints, then build the smallest possible set of Graph writes.
     param([string] $MailboxId, $State)
     $mailboxState = Get-MailboxState $State $MailboxId
-    $folderId = Get-OrCreateFolder $MailboxId $mailboxState
-    if (-not $mailboxState) {
-        # First sync for this mailbox: create the initial local map from Outlook contacts.
+    $folderId = Get-OrCreateFolder $MailboxId $mailboxState @($State.DesiredContacts).Count
+    if (-not $mailboxState -or $State.RebuildMailboxCache) {
+        # The first sync, and each periodic full refresh, reads the actual Outlook
+        # folder instead of trusting SQLite. This detects contacts users deleted
+        # or changed directly in Outlook and rebuilds the mailbox-specific map.
         $mailboxState = Initialize-MailboxState $MailboxId $folderId
         Save-MailboxState $mailboxState
     }
@@ -413,6 +489,23 @@ function Sync-Mailbox {
     $current = @{}; foreach ($entry in @($mailboxState.Contacts)) { $current[$entry.Email] = $entry }
     $desired = @{}; foreach ($contact in @($State.DesiredContacts)) { $desired[$contact.Email.ToLowerInvariant()] = $contact }
     $user = ConvertTo-GraphPath $MailboxId; $operations = @()
+    # A full mailbox scan can identify manual duplicate contacts. Delete only
+    # the extra copies; the canonical copy remains available for an update or
+    # deletion based on the current directory source below.
+    foreach ($duplicateContactId in @(Get-OptionalProperty -Object $mailboxState -Name 'DuplicateContactIds' | Where-Object { $_ })) {
+        # Duplicate deletes are deliberately separate from source-contact
+        # deletes, so deleting an extra copy never removes the canonical SQLite
+        # mapping for that email address.
+        $operations += [pscustomobject]@{ Action = 'DeleteDuplicate'; Method = 'DELETE'; Url = "/users/$user/contactFolders/$folderId/contacts/$duplicateContactId"; Body = $null }
+    }
+    if ($State.RebuildMailboxCache) {
+        # Categories can expose migrated/old copies in other contact folders.
+        # Remove only copies with both the managed category and a directory email.
+        $duplicateFolders = @(Find-DuplicateFolders -MailboxId $MailboxId -ManagedFolderId $folderId)
+        foreach ($duplicate in $duplicateFolders) {
+            Remove-DuplicateFolder -MailboxId $MailboxId -Folder $duplicate
+        }
+    }
     # Contacts no longer in the source directory are deleted from this managed folder.
     foreach ($email in $current.Keys) {
         if (-not $desired.ContainsKey($email)) { $operations += [pscustomobject]@{ Action = 'Delete'; Email = $email; Method = 'DELETE'; Url = "/users/$user/contactFolders/$folderId/contacts/$($current[$email].ContactId)"; Body = $null } }
@@ -437,7 +530,7 @@ function Sync-Mailbox {
         $operation = $result.Operation
         if ($operation.Action -eq 'Delete') { $current.Remove($operation.Email) | Out-Null }
         elseif ($operation.Action -eq 'Create') { $current[$operation.Email] = [pscustomobject]@{ Email = $operation.Email; ContactId = $result.Response.body.id; Fingerprint = $operation.Source.Fingerprint } }
-        else { $current[$operation.Email].Fingerprint = $operation.Source.Fingerprint }
+        elseif ($operation.Action -eq 'Update') { $current[$operation.Email].Fingerprint = $operation.Source.Fingerprint }
     }
     # Store only rows changed by this sync. A full map is already saved during
     # first-time mailbox initialization above.
@@ -448,20 +541,21 @@ try {
     # SQLite stores the large per-mailbox contact mapping. The initializer script
     # creates this file and its tables before the first sync.
     if (-not (Test-Path -LiteralPath $DatabasePath)) { throw "SQLite database '$DatabasePath' was not found. Run Getting Started\\Initialize-GraphContactSyncDatabase.ps1 first." }
+    $DatabasePath = (Resolve-Path -LiteralPath $DatabasePath).Path
     if ($null -eq (Get-Module -ListAvailable PSSQLite | Select-Object -First 1)) { throw 'PSSQLite is required. Install it with: Install-Module PSSQLite -Scope AllUsers' }
     Import-Module PSSQLite -ErrorAction Stop
+    $requiredTables = @('Mailbox', 'MailboxContact', 'SourceContact', 'SyncMetadata')
+    $actualTables = @(Invoke-SqliteQuery -DataSource $DatabasePath -Query "SELECT name FROM sqlite_master WHERE type='table'" | ForEach-Object { $_.name })
+    $missingTables = @($requiredTables | Where-Object { $_ -notin $actualTables })
+    if ($missingTables.Count -gt 0) {
+        throw "SQLite database '$DatabasePath' is not initialized (missing: $($missingTables -join ', ')). Run Getting Started\\Initialize-GraphContactSyncDatabase.ps1 with this exact -DatabasePath."
+    }
     # Confirm the minimal Graph PowerShell module is installed before doing any work.
     if ($null -eq (Get-Module -ListAvailable Microsoft.Graph.Authentication | Select-Object -First 1)) { throw 'Microsoft.Graph.Authentication is required. Install it with: Install-Module Microsoft.Graph.Authentication -Scope CurrentUser' }
     # Create the optional log folder and choose a unique log filename for this run.
     if ($LogPath) { New-Item -ItemType Directory -Force -Path $LogPath | Out-Null; $script:LogFile = Join-Path $LogPath ("GraphContactSync_{0:yyyyMMdd_HHmmss}.log" -f (Get-Date)) }
     # Read recipient mailboxes from a CSV when the caller chose that option.
     if ($MailboxCsvPath) { $MailboxList = Import-Csv -LiteralPath $MailboxCsvPath | ForEach-Object { if ($_.Mailbox) { $_.Mailbox } elseif ($_.UserPrincipalName) { $_.UserPrincipalName } } }
-    if (@($MailboxList).Count -eq 1 -and $MailboxList[0].ToUpperInvariant() -eq 'DIRECTORY') {
-        # DIRECTORY expands to every enabled member user with an email address.
-        # Explicit recipients or a CSV are safer in production.
-        Write-SyncLog -Level WARN -Message 'DIRECTORY is not recommended in production; use -MailboxCsvPath or an explicit list.'
-        $MailboxList = Get-GraphPages -Uri '/v1.0/users?$select=id,mail,accountEnabled,userType' | Where-Object { $_.accountEnabled -eq $true -and $_.userType -eq 'Member' -and $_.mail } | ForEach-Object { $_.id }
-    }
     # Decrypt the PFX password for this Windows user and load the local certificate.
     $password = Import-Clixml -LiteralPath $CertificatePasswordPath
     $certificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath.FullName, $password)
@@ -477,27 +571,52 @@ try {
         $state.DesiredContacts = @()
         $state.SourceChanges = @()
         $state.RebuildSourceCache = $true
+        $state.RebuildMailboxCache = $true
         if ($state.PSObject.Properties['FilterSignature']) { $state.FilterSignature = $filterSignature }
         else { $state | Add-Member -NotePropertyName FilterSignature -NotePropertyValue $filterSignature }
+    } else {
+        # Periodically rebuild the source cache. This is useful for recovering
+        # from an unexpected cache inconsistency without doing a full read every
+        # scheduled run. A database created before this setting existed has no
+        # timestamp, so it safely performs one full refresh on its next run.
+        $lastFullRefresh = Get-OptionalProperty -Object $state -Name 'LastFullDirectoryRefreshUtc'
+        $refreshDue = $true
+        if ($lastFullRefresh) {
+            try { $refreshDue = (((Get-Date).ToUniversalTime() - [datetime]::Parse($lastFullRefresh).ToUniversalTime()).TotalDays -ge $FullDirectoryRefreshDays) }
+            catch { Write-SyncLog -Level WARN -Message 'Last full directory-refresh timestamp was invalid; rebuilding the directory cache.' }
+        }
+        if ($refreshDue) {
+            Write-SyncLog -Message "Full directory and mailbox-cache refresh is due; rebuilding it (every $FullDirectoryRefreshDays day(s))."
+            $state.UserDeltaLink = $null
+            $state.SourceContacts = @()
+            $state.DesiredContacts = @()
+            $state.SourceChanges = @()
+            $state.RebuildSourceCache = $true
+            $state.RebuildMailboxCache = $true
+        }
     }
     # Get current source contacts, using delta tracking when a prior checkpoint exists.
     $state = Get-SourceState $state
     Write-SyncLog -Message "Directory cache contains $(@($state.DesiredContacts).Count) contact(s)."
+    if ($directoryMode) {
+        # Reuse the already-loaded directory source instead of paging /users a
+        # second time just to build target mailboxes. Source filters therefore
+        # also determine which mailboxes DIRECTORY mode targets.
+        $MailboxList = @($state.SourceContacts | Where-Object { $_.Email } | ForEach-Object { $_.Email } | Sort-Object -Unique)
+        Write-SyncLog -Level WARN -Message "DIRECTORY mode selected $($MailboxList.Count) mailbox(es) from the cached directory source."
+    }
     $failed = 0
     # Sync one mailbox at a time. Sequential processing is gentler on Graph throttling.
     foreach ($mailbox in @($MailboxList | Where-Object { $_ } | Select-Object -Unique)) {
         try { Sync-Mailbox $mailbox $state }
         catch { $failed++; Write-SyncLog -Level ERROR -Message "Failed to sync $mailbox : $($_.Exception.Message)" }
     }
-    # Only advance the delta checkpoint when every mailbox completed. This ensures
-    # failed mailbox changes are retried next time instead of being silently skipped.
-    if ($failed -eq 0) { Save-State $state; Write-SyncLog -Message 'Sync completed and state was saved.' }
-    else { throw "$failed mailbox sync(s) failed; state was not advanced." }
-} catch  {
-    If ($LogPath) { 
-        Write-SyncLog -Message "An initialization error has occured."
-        Write-SyncLog -Message $_.ScriptStackTrace
-    }
+    # Keep successful mailboxes moving even when one mailbox has a transient
+    # problem. Each later run compares every mailbox's saved mapping to the
+    # current source cache, so the failed mailbox is reconciled on its retry.
+    Save-State $state
+    if ($failed -eq 0) { Write-SyncLog -Message 'Sync completed and state was saved.' }
+    else { Write-SyncLog -Level WARN -Message "$failed mailbox sync(s) failed; successful mailbox and directory state was saved. Failed mailboxes will retry next run." }
 } finally {
     # Always close the Graph session, including when a failure occurs.
     Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null

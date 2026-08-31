@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [5.0.1] - 07/18/2023
+## Added
+- Added FullDirectoryRefreshDays cache expiration to allow a full directory rebuild every month or so. This will re-add accidently deleted or duplciated contacts -- but takes much longer to run.
+
+## Changed
+- Fixed backwards compatabilty with EWS by switching to Graph Beta. This way, graph is able to see the folder that EWS created in the past. Before, it would make a duplicate folder with the same name.
+- Improved "DIRECTORY" mode performance
+
 ## [5.0.0] - 07/18/2023
 ## Changed
 - !!! Major upgrade from EWS to Graph API, please see new README.md
