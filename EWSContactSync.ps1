@@ -72,13 +72,58 @@ function Get-OptionalProperty {
     $property.Value
 }
 
+function Format-GraphRequestError {
+    # Invoke-MgGraphRequest's exception message often contains only the HTTP
+    # reason phrase. Recover the JSON error details when the SDK supplies them
+    # so logs retain Graph's useful code and request identifiers.
+    param([Parameter(Mandatory)] $ErrorRecord)
+    $exception = Get-OptionalProperty -Object $ErrorRecord -Name 'Exception'
+    $message = Get-OptionalProperty -Object $exception -Name 'Message'
+    if (-not $message) { $message = [string]$ErrorRecord }
+    $response = Get-OptionalProperty -Object $exception -Name 'Response'
+    $status = Get-OptionalProperty -Object $response -Name 'StatusCode'
+    $errorDetails = Get-OptionalProperty -Object $ErrorRecord -Name 'ErrorDetails'
+    $rawDetails = Get-OptionalProperty -Object $errorDetails -Name 'Message'
+    $graphError = $null
+    if ($rawDetails) {
+        try {
+            $detailObject = $rawDetails | ConvertFrom-Json -ErrorAction Stop
+            $graphError = Get-OptionalProperty -Object $detailObject -Name 'error'
+        } catch {
+            # Some SDK versions return plain text rather than a Graph JSON body.
+            if ($rawDetails -ne $message) { $message = "$message $rawDetails" }
+        }
+    }
+    $innerError = Get-OptionalProperty -Object $graphError -Name 'innerError'
+    $graphMessage = Get-OptionalProperty -Object $graphError -Name 'message'
+    if ($graphMessage) { $message = $graphMessage }
+    $diagnostics = @()
+    $errorCode = Get-OptionalProperty -Object $graphError -Name 'code'
+    $innerErrorCode = Get-OptionalProperty -Object $innerError -Name 'code'
+    $requestId = Get-OptionalProperty -Object $innerError -Name 'request-id'
+    $clientRequestId = Get-OptionalProperty -Object $innerError -Name 'client-request-id'
+    $errorDate = Get-OptionalProperty -Object $innerError -Name 'date'
+    if ($errorCode) { $diagnostics += "code=$errorCode" }
+    if ($innerErrorCode -and $innerErrorCode -ne $errorCode) { $diagnostics += "inner-code=$innerErrorCode" }
+    if ($requestId) { $diagnostics += "request-id=$requestId" }
+    if ($clientRequestId) { $diagnostics += "client-request-id=$clientRequestId" }
+    if ($errorDate) { $diagnostics += "date=$errorDate" }
+    $statusText = if ($status) { "HTTP $([int]$status) $status" } else { $null }
+    $diagnosticText = if ($diagnostics.Count -gt 0) { "[$($diagnostics -join '; ')]" } else { $null }
+    (@($statusText, $diagnosticText, $message) | Where-Object { $_ }) -join ': '
+}
+
 function Get-GraphPages {
     # Graph lists can span multiple pages. Keep following @odata.nextLink until
     # Graph says there are no more pages, then return one combined list.
-    param([Parameter(Mandatory)] [string] $Uri)
+    param([Parameter(Mandatory)] [string] $Uri, [switch] $ImmutableIds)
     $items = @()
     do {
-        $response = Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
+        $request = @{ Method = 'GET'; Uri = $Uri; OutputType = 'PSObject' }
+        # Outlook item IDs normally change when an item is moved. Ask Graph for
+        # immutable IDs on every page when the caller intends to cache item IDs.
+        if ($ImmutableIds) { $request.Headers = @{ Prefer = 'IdType="ImmutableId"' } }
+        $response = Invoke-MgGraphRequest @request
         if ($null -ne $response.value) { $items += @($response.value) }
         $Uri = Get-OptionalProperty -Object $response -Name '@odata.nextLink'
     } while ($Uri)
@@ -86,10 +131,12 @@ function Get-GraphPages {
 }
 
 function Get-BetaGraphPages {
-    param([Parameter(Mandatory)] [string] $Uri)
+    param([Parameter(Mandatory)] [string] $Uri, [switch] $ImmutableIds)
     $items = @()
     do {
-        $response = Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
+        $request = @{ Method = 'GET'; Uri = $Uri; OutputType = 'PSObject' }
+        if ($ImmutableIds) { $request.Headers = @{ Prefer = 'IdType="ImmutableId"' } }
+        $response = Invoke-MgGraphRequest @request
         if ($null -ne $response.value) { $items += @($response.value) }
         $Uri = Get-OptionalProperty -Object $response -Name '@odata.nextLink'
     } while ($Uri)
@@ -172,6 +219,52 @@ function Get-FilterSignature {
     ) -join ';'
 }
 
+function New-SqliteWriteCommand {
+    # Build a parameterized command once so row loops only replace values and
+    # execute it. The transaction makes the complete logical save atomic.
+    param($Connection, $Transaction, [Parameter(Mandatory)] [string] $Query, [Parameter(Mandatory)] [AllowEmptyCollection()] [string[]] $ParameterNames)
+    $command = $Connection.CreateCommand()
+    $command.CommandText = $Query
+    $command.Transaction = $Transaction
+    foreach ($name in $ParameterNames) { [void] $command.Parameters.AddWithValue("@$name", [DBNull]::Value) }
+    $command.Prepare()
+    $command
+}
+
+function Invoke-SqliteWriteCommand {
+    # Reuse a prepared command with a new parameter set for one row.
+    param($Command, [Parameter(Mandatory)] [hashtable] $Parameters)
+    foreach ($parameter in $Command.Parameters) {
+        $name = $parameter.ParameterName.TrimStart('@')
+        $value = $Parameters[$name]
+        $parameter.Value = if ($null -eq $value) { [DBNull]::Value } else { $value }
+    }
+    [void] $Command.ExecuteNonQuery()
+}
+
+function Invoke-SqliteWriteTransaction {
+    # Opening one connection and committing once avoids a separate connection
+    # and durable SQLite commit for every row written by a save operation.
+    param([Parameter(Mandatory)] [scriptblock] $Action)
+    $connection = $null
+    $transaction = $null
+    try {
+        $connection = New-SQLiteConnection -DataSource $DatabasePath
+        $transaction = $connection.BeginTransaction()
+        & $Action $connection $transaction
+        $transaction.Commit()
+    } catch {
+        $transactionError = $_
+        if ($null -ne $transaction) {
+            try { $transaction.Rollback() } catch { }
+        }
+        throw $transactionError
+    } finally {
+        if ($null -ne $transaction) { $transaction.Dispose() }
+        if ($null -ne $connection) { $connection.Dispose() }
+    }
+}
+
 function Get-State {
     # Read the small sync-wide checkpoint and source contacts from SQLite.
     $metadata = @{}
@@ -184,36 +277,53 @@ function Get-State {
 
 function Save-State { param($State)
     $now = (Get-Date).ToUniversalTime().ToString('o')
-    # A new database, expired delta token, or changed filters requires a safe
-    # full rebuild. Normal delta runs only write the individual changed rows.
-    if ($State.RebuildSourceCache) {
-        Invoke-SqliteQuery -DataSource $DatabasePath -Query 'DELETE FROM SourceContact' | Out-Null
-        foreach ($contact in @($State.SourceContacts)) {
-            Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT INTO SourceContact (SourceId,Email,Fingerprint,ContactJson,UpdatedUtc) VALUES (@id,@email,@fingerprint,@json,@now)' -SqlParameters @{ id=$contact.SourceId; email=$contact.Email; fingerprint=$contact.Fingerprint; json=($contact | ConvertTo-Json -Depth 8 -Compress); now=$now } | Out-Null
-        }
-    } elseif (@($State.SourceChanges).Count -gt 0) {
-        foreach ($change in @($State.SourceChanges)) {
-            if ($change.Action -eq 'Delete') {
-                Invoke-SqliteQuery -DataSource $DatabasePath -Query 'DELETE FROM SourceContact WHERE SourceId=@id' -SqlParameters @{ id=$change.SourceId } | Out-Null
-            } else {
-                $contact = $change.Contact
-                # Use older-SQLite-compatible insert/update statements in place
-                # of UPSERT so this works with older PSSQLite installations.
-                Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT OR IGNORE INTO SourceContact (SourceId,Email,Fingerprint,ContactJson,UpdatedUtc) VALUES (@id,@email,@fingerprint,@json,@now)' -SqlParameters @{ id=$contact.SourceId; email=$contact.Email; fingerprint=$contact.Fingerprint; json=($contact | ConvertTo-Json -Depth 8 -Compress); now=$now } | Out-Null
-                Invoke-SqliteQuery -DataSource $DatabasePath -Query 'UPDATE SourceContact SET Email=@email,Fingerprint=@fingerprint,ContactJson=@json,UpdatedUtc=@now WHERE SourceId=@id' -SqlParameters @{ id=$contact.SourceId; email=$contact.Email; fingerprint=$contact.Fingerprint; json=($contact | ConvertTo-Json -Depth 8 -Compress); now=$now } | Out-Null
-            }
-        }
-    } else {
-        Write-SyncLog -Message 'Directory cache is unchanged; skipped source-cache database rewrite.'
-    }
     # Record the successful full refresh only after every target mailbox has
     # completed. This prevents a failed run from postponing the next refresh.
     if ($State.RebuildSourceCache) { $State.LastFullDirectoryRefreshUtc = $now }
-    # Always retain the newest Graph delta token, even when no users changed.
-    foreach ($pair in @{ FilterSignature=$State.FilterSignature; UserDeltaLink=$State.UserDeltaLink; LastFullDirectoryRefreshUtc=$State.LastFullDirectoryRefreshUtc }.GetEnumerator()) {
-        # Use two older-SQLite-compatible statements instead of modern UPSERT syntax.
-        Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT OR IGNORE INTO SyncMetadata (MetadataKey,MetadataValue,UpdatedUtc) VALUES (@key,@value,@now)' -SqlParameters @{ key=$pair.Key; value=$pair.Value; now=$now } | Out-Null
-        Invoke-SqliteQuery -DataSource $DatabasePath -Query 'UPDATE SyncMetadata SET MetadataValue=@value,UpdatedUtc=@now WHERE MetadataKey=@key' -SqlParameters @{ key=$pair.Key; value=$pair.Value; now=$now } | Out-Null
+    Invoke-SqliteWriteTransaction {
+        param($connection, $transaction)
+        $commands = @()
+        try {
+            $sourceInsert = New-SqliteWriteCommand $connection $transaction 'INSERT INTO SourceContact (SourceId,Email,Fingerprint,ContactJson,UpdatedUtc) VALUES (@id,@email,@fingerprint,@json,@now)' @('id','email','fingerprint','json','now'); $commands += $sourceInsert
+            $sourceInsertIgnore = New-SqliteWriteCommand $connection $transaction 'INSERT OR IGNORE INTO SourceContact (SourceId,Email,Fingerprint,ContactJson,UpdatedUtc) VALUES (@id,@email,@fingerprint,@json,@now)' @('id','email','fingerprint','json','now'); $commands += $sourceInsertIgnore
+            $sourceUpdate = New-SqliteWriteCommand $connection $transaction 'UPDATE SourceContact SET Email=@email,Fingerprint=@fingerprint,ContactJson=@json,UpdatedUtc=@now WHERE SourceId=@id' @('id','email','fingerprint','json','now'); $commands += $sourceUpdate
+            $sourceDeleteAll = New-SqliteWriteCommand $connection $transaction 'DELETE FROM SourceContact' @(); $commands += $sourceDeleteAll
+            $sourceDelete = New-SqliteWriteCommand $connection $transaction 'DELETE FROM SourceContact WHERE SourceId=@id' @('id'); $commands += $sourceDelete
+            $metadataInsert = New-SqliteWriteCommand $connection $transaction 'INSERT OR IGNORE INTO SyncMetadata (MetadataKey,MetadataValue,UpdatedUtc) VALUES (@key,@value,@now)' @('key','value','now'); $commands += $metadataInsert
+            $metadataUpdate = New-SqliteWriteCommand $connection $transaction 'UPDATE SyncMetadata SET MetadataValue=@value,UpdatedUtc=@now WHERE MetadataKey=@key' @('key','value','now'); $commands += $metadataUpdate
+
+            # A new database, expired delta token, or changed filters requires a
+            # full rebuild. Normal delta runs write only the changed rows.
+            if ($State.RebuildSourceCache) {
+                Invoke-SqliteWriteCommand $sourceDeleteAll @{}
+                foreach ($contact in @($State.SourceContacts)) {
+                    Invoke-SqliteWriteCommand $sourceInsert @{ id=$contact.SourceId; email=$contact.Email; fingerprint=$contact.Fingerprint; json=($contact | ConvertTo-Json -Depth 8 -Compress); now=$now }
+                }
+            } elseif (@($State.SourceChanges).Count -gt 0) {
+                foreach ($change in @($State.SourceChanges)) {
+                    if ($change.Action -eq 'Delete') {
+                        Invoke-SqliteWriteCommand $sourceDelete @{ id=$change.SourceId }
+                    } else {
+                        $contact = $change.Contact
+                        $parameters = @{ id=$contact.SourceId; email=$contact.Email; fingerprint=$contact.Fingerprint; json=($contact | ConvertTo-Json -Depth 8 -Compress); now=$now }
+                        # Retain compatibility with SQLite versions before UPSERT.
+                        Invoke-SqliteWriteCommand $sourceInsertIgnore $parameters
+                        Invoke-SqliteWriteCommand $sourceUpdate $parameters
+                    }
+                }
+            } else {
+                Write-SyncLog -Message 'Directory cache is unchanged; skipped source-cache database rewrite.'
+            }
+
+            # Always retain the newest Graph delta token, even when no users changed.
+            foreach ($pair in @{ FilterSignature=$State.FilterSignature; UserDeltaLink=$State.UserDeltaLink; LastFullDirectoryRefreshUtc=$State.LastFullDirectoryRefreshUtc }.GetEnumerator()) {
+                $parameters = @{ key=$pair.Key; value=$pair.Value; now=$now }
+                Invoke-SqliteWriteCommand $metadataInsert $parameters
+                Invoke-SqliteWriteCommand $metadataUpdate $parameters
+            }
+        } finally {
+            foreach ($command in $commands) { $command.Dispose() }
+        }
     }
 }
 
@@ -296,11 +406,26 @@ function Save-MailboxState {
     # Later syncs use Save-MailboxChanges so they change only affected rows.
     param($MailboxState)
     $now = (Get-Date).ToUniversalTime().ToString('o')
-    # Insert a mailbox on its first sync, then update its folder ID on every run.
-    Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT OR IGNORE INTO Mailbox (MailboxId,FolderId,UpdatedUtc) VALUES (@id,@folder,@now)' -SqlParameters @{ id=$MailboxState.MailboxId; folder=$MailboxState.FolderId; now=$now } | Out-Null
-    Invoke-SqliteQuery -DataSource $DatabasePath -Query 'UPDATE Mailbox SET FolderId=@folder,UpdatedUtc=@now WHERE MailboxId=@id' -SqlParameters @{ id=$MailboxState.MailboxId; folder=$MailboxState.FolderId; now=$now } | Out-Null
-    Invoke-SqliteQuery -DataSource $DatabasePath -Query 'DELETE FROM MailboxContact WHERE MailboxId=@id' -SqlParameters @{ id=$MailboxState.MailboxId } | Out-Null
-    foreach ($contact in @($MailboxState.Contacts)) { Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT INTO MailboxContact (MailboxId,Email,ContactId,Fingerprint,UpdatedUtc) VALUES (@mailbox,@email,@contact,@fingerprint,@now)' -SqlParameters @{ mailbox=$MailboxState.MailboxId; email=$contact.Email; contact=$contact.ContactId; fingerprint=$contact.Fingerprint; now=$now } | Out-Null }
+    Invoke-SqliteWriteTransaction {
+        param($connection, $transaction)
+        $commands = @()
+        try {
+            $mailboxInsert = New-SqliteWriteCommand $connection $transaction 'INSERT OR IGNORE INTO Mailbox (MailboxId,FolderId,UpdatedUtc) VALUES (@id,@folder,@now)' @('id','folder','now'); $commands += $mailboxInsert
+            $mailboxUpdate = New-SqliteWriteCommand $connection $transaction 'UPDATE Mailbox SET FolderId=@folder,UpdatedUtc=@now WHERE MailboxId=@id' @('id','folder','now'); $commands += $mailboxUpdate
+            $contactDelete = New-SqliteWriteCommand $connection $transaction 'DELETE FROM MailboxContact WHERE MailboxId=@id' @('id'); $commands += $contactDelete
+            $contactInsert = New-SqliteWriteCommand $connection $transaction 'INSERT INTO MailboxContact (MailboxId,Email,ContactId,Fingerprint,UpdatedUtc) VALUES (@mailbox,@email,@contact,@fingerprint,@now)' @('mailbox','email','contact','fingerprint','now'); $commands += $contactInsert
+
+            $mailboxParameters = @{ id=$MailboxState.MailboxId; folder=$MailboxState.FolderId; now=$now }
+            Invoke-SqliteWriteCommand $mailboxInsert $mailboxParameters
+            Invoke-SqliteWriteCommand $mailboxUpdate $mailboxParameters
+            Invoke-SqliteWriteCommand $contactDelete @{ id=$MailboxState.MailboxId }
+            foreach ($contact in @($MailboxState.Contacts)) {
+                Invoke-SqliteWriteCommand $contactInsert @{ mailbox=$MailboxState.MailboxId; email=$contact.Email; contact=$contact.ContactId; fingerprint=$contact.Fingerprint; now=$now }
+            }
+        } finally {
+            foreach ($command in $commands) { $command.Dispose() }
+        }
+    }
 }
 
 function Save-MailboxChanges {
@@ -308,20 +433,29 @@ function Save-MailboxChanges {
     # avoids deleting and rebuilding thousands of rows for a one-contact update.
     param($MailboxState, [object[]] $Completed)
     $now = (Get-Date).ToUniversalTime().ToString('o')
-    # Keep the mailbox timestamp meaningful without touching its contact rows.
-    Invoke-SqliteQuery -DataSource $DatabasePath -Query 'UPDATE Mailbox SET FolderId=@folder,UpdatedUtc=@now WHERE MailboxId=@id' -SqlParameters @{ id=$MailboxState.MailboxId; folder=$MailboxState.FolderId; now=$now } | Out-Null
-    foreach ($result in @($Completed)) {
-        $operation = $result.Operation
-        if ($operation.Action -eq 'Delete') {
-            # The Graph DELETE succeeded, so remove just this contact mapping.
-            Invoke-SqliteQuery -DataSource $DatabasePath -Query 'DELETE FROM MailboxContact WHERE MailboxId=@mailbox AND Email=@email' -SqlParameters @{ mailbox=$MailboxState.MailboxId; email=$operation.Email } | Out-Null
-        } elseif ($operation.Action -eq 'Create') {
-            # Graph returned the new, mailbox-specific Outlook contact ID.
-            Invoke-SqliteQuery -DataSource $DatabasePath -Query 'INSERT OR REPLACE INTO MailboxContact (MailboxId,Email,ContactId,Fingerprint,UpdatedUtc) VALUES (@mailbox,@email,@contact,@fingerprint,@now)' -SqlParameters @{ mailbox=$MailboxState.MailboxId; email=$operation.Email; contact=$result.Response.body.id; fingerprint=$operation.Source.Fingerprint; now=$now } | Out-Null
-        } elseif ($operation.Action -eq 'Update') {
-            # An update retains the same Outlook contact ID; only its applied
-            # fingerprint needs to be advanced to the source fingerprint.
-            Invoke-SqliteQuery -DataSource $DatabasePath -Query 'UPDATE MailboxContact SET Fingerprint=@fingerprint,UpdatedUtc=@now WHERE MailboxId=@mailbox AND Email=@email' -SqlParameters @{ mailbox=$MailboxState.MailboxId; email=$operation.Email; fingerprint=$operation.Source.Fingerprint; now=$now } | Out-Null
+    Invoke-SqliteWriteTransaction {
+        param($connection, $transaction)
+        $commands = @()
+        try {
+            $mailboxUpdate = New-SqliteWriteCommand $connection $transaction 'UPDATE Mailbox SET FolderId=@folder,UpdatedUtc=@now WHERE MailboxId=@id' @('id','folder','now'); $commands += $mailboxUpdate
+            $contactDelete = New-SqliteWriteCommand $connection $transaction 'DELETE FROM MailboxContact WHERE MailboxId=@mailbox AND Email=@email' @('mailbox','email'); $commands += $contactDelete
+            $contactInsert = New-SqliteWriteCommand $connection $transaction 'INSERT OR REPLACE INTO MailboxContact (MailboxId,Email,ContactId,Fingerprint,UpdatedUtc) VALUES (@mailbox,@email,@contact,@fingerprint,@now)' @('mailbox','email','contact','fingerprint','now'); $commands += $contactInsert
+            $contactUpdate = New-SqliteWriteCommand $connection $transaction 'UPDATE MailboxContact SET Fingerprint=@fingerprint,UpdatedUtc=@now WHERE MailboxId=@mailbox AND Email=@email' @('mailbox','email','fingerprint','now'); $commands += $contactUpdate
+
+            # Keep the mailbox timestamp meaningful without rewriting its map.
+            Invoke-SqliteWriteCommand $mailboxUpdate @{ id=$MailboxState.MailboxId; folder=$MailboxState.FolderId; now=$now }
+            foreach ($result in @($Completed)) {
+                $operation = $result.Operation
+                if ($operation.Action -eq 'Delete') {
+                    Invoke-SqliteWriteCommand $contactDelete @{ mailbox=$MailboxState.MailboxId; email=$operation.Email }
+                } elseif ($operation.Action -eq 'Create') {
+                    Invoke-SqliteWriteCommand $contactInsert @{ mailbox=$MailboxState.MailboxId; email=$operation.Email; contact=$result.Response.body.id; fingerprint=$operation.Source.Fingerprint; now=$now }
+                } elseif ($operation.Action -eq 'Update') {
+                    Invoke-SqliteWriteCommand $contactUpdate @{ mailbox=$MailboxState.MailboxId; email=$operation.Email; fingerprint=$operation.Source.Fingerprint; now=$now }
+                }
+            }
+        } finally {
+            foreach ($command in $commands) { $command.Dispose() }
         }
     }
 }
@@ -355,7 +489,7 @@ function Get-OrCreateFolder {
     $folder = $null
     if ($candidates.Count -gt 0) {
         $folder = $candidates | ForEach-Object {
-            $count = @(Get-BetaGraphPages -Uri "https://graph.microsoft.com/beta/users/$user/contactFolders/$($_.id)/contacts?`$select=id").Count
+            $count = @(Get-BetaGraphPages -Uri "https://graph.microsoft.com/beta/users/$user/contactFolders/$($_.id)/contacts?`$select=id" -ImmutableIds).Count
             [pscustomobject]@{ Folder=$_; Count=$count; Difference=[Math]::Abs($count - $DesiredContactCount) }
         } | Sort-Object Difference, Count | Select-Object -First 1
         Write-SyncLog -Message "Selected '$FolderName' folder $($folder.Folder.id) with $($folder.Count) contact(s), closest to the $DesiredContactCount directory contact(s)."
@@ -371,7 +505,7 @@ function Initialize-MailboxState {
     param([string] $MailboxId, [string] $FolderId)
     $user = ConvertTo-GraphPath $MailboxId
     $select = 'id,displayName,givenName,surname,jobTitle,companyName,department,emailAddresses,businessPhones,mobilePhone'
-    $existing = Get-GraphPages -Uri "/v1.0/users/$user/contactFolders/$FolderId/contacts?`$select=$select"
+    $existing = Get-GraphPages -Uri "/v1.0/users/$user/contactFolders/$FolderId/contacts?`$select=$select" -ImmutableIds
     # SQLite maps a source email to one mailbox-specific contact ID. A user can
     # manually create duplicate Outlook contacts with the same email, so retain
     # one deterministic contact in the map and collect the extra copies for
@@ -414,8 +548,8 @@ function Remove-DuplicateFolder {
     $base = "https://graph.microsoft.com/beta/users/$user/contactFolders/$($Folder.Id)"
     # Legacy folders discovered only by beta can reject a v1 folder DELETE.
     # Remove their contacts individually first; then remove the empty folder.
-    foreach ($contact in Get-BetaGraphPages -Uri "$base/contacts?`$select=id") {
-        Invoke-MgGraphRequest -Method DELETE -Uri "$base/contacts/$($contact.id)" | Out-Null
+    foreach ($contact in Get-BetaGraphPages -Uri "$base/contacts?`$select=id" -ImmutableIds) {
+        Invoke-MgGraphRequest -Method DELETE -Uri "$base/contacts/$($contact.id)" -Headers @{ Prefer = 'IdType="ImmutableId"' } | Out-Null
     }
     try {
         Invoke-MgGraphRequest -Method DELETE -Uri $base | Out-Null
@@ -436,8 +570,11 @@ function Invoke-GraphBatch {
         $requests = @(); $operationById = @{}
         foreach ($operation in $pending) {
             $id = [guid]::NewGuid().ToString(); $operationById[$id] = $operation
-            $request = @{ id = $id; method = $operation.Method; url = $operation.Url }
-            if ($operation.Body) { $request.headers = @{ 'Content-Type' = 'application/json' }; $request.body = $operation.Body }
+            # All operations in this batch target Outlook contacts. Request
+            # immutable IDs so newly created contacts can be cached safely and
+            # existing IDs remain usable if a contact is moved within a mailbox.
+            $request = @{ id = $id; method = $operation.Method; url = $operation.Url; headers = @{ Prefer = 'IdType="ImmutableId"' } }
+            if ($operation.Body) { $request.headers['Content-Type'] = 'application/json'; $request.body = $operation.Body }
             $requests += $request
         }
         # Post the complete batch to Graph. A successful batch envelope can still
@@ -447,7 +584,14 @@ function Invoke-GraphBatch {
         foreach ($item in @($response.responses)) {
             $operation = $operationById[$item.id]
             # HTTP 2xx means this one Graph operation completed successfully.
-            if ($item.status -ge 200 -and $item.status -lt 300) { $results += [pscustomobject]@{ Operation = $operation; Response = $item } }
+            if ($item.status -ge 200 -and $item.status -lt 300) { $results += [pscustomobject]@{ Operation = $operation; Response = $item; RequiresMailboxReconciliation = $false } }
+            elseif ($item.status -eq 404 -and $operation.Method -in @('DELETE', 'PATCH')) {
+                # A cached Outlook item ID can become stale after a move or an
+                # external deletion. A 404 does not prove that the logical
+                # contact is absent under another ID, so make the caller rescan
+                # the managed folder instead of treating the delete as complete.
+                $results += [pscustomobject]@{ Operation = $operation; Response = $item; RequiresMailboxReconciliation = $true }
+            }
             elseif (($item.status -eq 429 -or $item.status -ge 500) -and $attempt -lt $MaxBatchRetries) {
                 # Retry throttling (429) and temporary service errors (5xx), but
                 # do not retry invalid requests such as 400 or 403.
@@ -456,7 +600,33 @@ function Invoke-GraphBatch {
                 $retryAfterValue = Get-OptionalProperty -Object (Get-OptionalProperty -Object $item -Name 'headers') -Name 'Retry-After'
                 if ($retryAfterValue) { [void][int]::TryParse([string]$retryAfterValue, [ref]$retryAfter) }
                 $wait = [Math]::Max($wait, $retryAfter)
-            } else { throw "Graph batch operation $($operation.Method) $($operation.Url) failed with HTTP $($item.status): $($item.body.error.message)" }
+            } else {
+                # Include Graph's machine-readable diagnostics. The message alone
+                # is often generic (for example, quota and access failures can
+                # both say that properties could not be read), while the error
+                # code and request ID identify the actual Exchange failure and
+                # let Microsoft support trace the request.
+                $errorBody = Get-OptionalProperty -Object $item -Name 'body'
+                $graphError = Get-OptionalProperty -Object $errorBody -Name 'error'
+                $innerError = Get-OptionalProperty -Object $graphError -Name 'innerError'
+                $diagnostics = @()
+                $contactEmail = Get-OptionalProperty -Object $operation -Name 'Email'
+                $errorCode = Get-OptionalProperty -Object $graphError -Name 'code'
+                $innerErrorCode = Get-OptionalProperty -Object $innerError -Name 'code'
+                $requestId = Get-OptionalProperty -Object $innerError -Name 'request-id'
+                $clientRequestId = Get-OptionalProperty -Object $innerError -Name 'client-request-id'
+                $errorDate = Get-OptionalProperty -Object $innerError -Name 'date'
+                if ($contactEmail) { $diagnostics += "contact=$contactEmail" }
+                if ($errorCode) { $diagnostics += "code=$errorCode" }
+                if ($innerErrorCode -and $innerErrorCode -ne $errorCode) { $diagnostics += "inner-code=$innerErrorCode" }
+                if ($requestId) { $diagnostics += "request-id=$requestId" }
+                if ($clientRequestId) { $diagnostics += "client-request-id=$clientRequestId" }
+                if ($errorDate) { $diagnostics += "date=$errorDate" }
+                $diagnosticText = if ($diagnostics.Count -gt 0) { " [$($diagnostics -join '; ')]" } else { '' }
+                $errorMessage = Get-OptionalProperty -Object $graphError -Name 'message'
+                if (-not $errorMessage) { $errorMessage = 'Graph returned no error message.' }
+                throw "Graph batch operation $($operation.Method) $($operation.Url) failed with HTTP $($item.status)$diagnosticText`: $errorMessage"
+            }
         }
         if ($retry.Count -gt 0) {
             # Prefer Graph's Retry-After value. When it is unavailable, wait longer
@@ -474,9 +644,16 @@ function Invoke-GraphBatch {
 function Sync-Mailbox {
     # Compare the directory's desired contacts with one mailbox's cached contact
     # IDs and fingerprints, then build the smallest possible set of Graph writes.
-    param([string] $MailboxId, $State)
-    $mailboxState = Get-MailboxState $State $MailboxId
-    $folderId = Get-OrCreateFolder $MailboxId $mailboxState @($State.DesiredContacts).Count
+    param([string] $MailboxId, $State, $MailboxStateOverride, [int] $ReconciliationAttempt = 0)
+    # A reconciliation retry passes the just-scanned state directly so duplicate
+    # contact IDs discovered by that scan are not lost in the SQLite round trip.
+    $mailboxState = if ($MailboxStateOverride) { $MailboxStateOverride } else { Get-MailboxState $State $MailboxId }
+    try {
+        $folderId = Get-OrCreateFolder $MailboxId $mailboxState @($State.DesiredContacts).Count
+    } catch {
+        $graphFailure = Format-GraphRequestError -ErrorRecord $_
+        throw "Unable to access the managed contact folder for ${MailboxId}: $graphFailure"
+    }
     if (-not $mailboxState -or $State.RebuildMailboxCache) {
         # The first sync, and each periodic full refresh, reads the actual Outlook
         # folder instead of trusting SQLite. This detects contacts users deleted
@@ -523,7 +700,24 @@ function Sync-Mailbox {
     # Split the work into batches so no Graph request exceeds the service limit.
     for ($offset = 0; $offset -lt $operations.Count; $offset += $BatchSize) {
         $last = [Math]::Min($offset + $BatchSize - 1, $operations.Count - 1)
-        $completed += Invoke-GraphBatch -Operations $operations[$offset..$last]
+        $batchResults = @(Invoke-GraphBatch -Operations $operations[$offset..$last])
+        $staleIdResults = @($batchResults | Where-Object { $_.RequiresMailboxReconciliation })
+        if ($staleIdResults.Count -gt 0) {
+            if ($ReconciliationAttempt -ge 1) {
+                $staleOperation = $staleIdResults[0].Operation
+                throw "Graph still could not find a contact after rescanning ${MailboxId}: $($staleOperation.Method) $($staleOperation.Url)"
+            }
+            # Other subrequests in this batch may already have succeeded. Read
+            # the folder's actual state so the retry accounts for every result,
+            # including a contact that now exists under a different ID.
+            $staleMethods = @($staleIdResults | ForEach-Object { $_.Operation.Method } | Sort-Object -Unique) -join '/'
+            Write-SyncLog -Level WARN -Message "Graph could not find $($staleIdResults.Count) cached contact ID(s) during $staleMethods for $MailboxId; refreshing the managed-folder cache and retrying once."
+            $refreshedMailboxState = Initialize-MailboxState $MailboxId $folderId
+            Save-MailboxState $refreshedMailboxState
+            Sync-Mailbox -MailboxId $MailboxId -State $State -MailboxStateOverride $refreshedMailboxState -ReconciliationAttempt ($ReconciliationAttempt + 1)
+            return
+        }
+        $completed += $batchResults
     }
     # Update the local mailbox cache only for operations Graph confirmed as successful.
     foreach ($result in $completed) {

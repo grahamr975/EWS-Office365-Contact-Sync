@@ -1,10 +1,10 @@
-# Microsoft Graph Contact Sync (Major 2026 Upgrade)
+# Microsoft Graph Contact Sync
 
-Synchronize your Office 365 directory contacts into a dedicated Outlook contact
+Synchronize Microsoft Entra directory contacts into a dedicated Outlook contact
 folder for one or more Exchange Online mailboxes. This is a Microsoft Graph-only
 rewrite of the former EWS sync script.
 
-After the first sync, uses SQL Lite to cache the contact state of each mailbox. This way, the script won't have to re-read each's mailboxes contact list on future runs. This caching significantly improves the sync duration after the first run.
+After the first sync, uses SQL Lite to cache the contact state of each mailbox. This way, the script won't have to re-read each's mailboxes contact list on future runs. This caching significantly improves the sync run-time after the first run.
 
 **Why would I want to use this?** iPhone/Android devices don't currently support offline Global Address List synchronization. By loading the Global Address List contacts into a folder within user's mailbox, you can circumvent this limitation.
 
@@ -33,7 +33,7 @@ After the first sync, uses SQL Lite to cache the contact state of each mailbox. 
    that will run the scheduled task. The existing
    `Getting Started/Create-SecureCertificatePassword.ps1` helper can be used.
 
-5. Install the SQL Lite Powershell Module & initialize the local sync database. The size of this database file can go up to a few GB, depending on the size of your Microsoft tenet.
+5. Install the SQL Lite Powershell Module & initialize the local sync database.
 ```powershell
 Install-Module PSSQLite -Scope AllUsers
 
@@ -54,7 +54,7 @@ folder as the target.
   -ClientId '00000000-0000-0000-0000-000000000000' `
   -CertificatePath 'C:\Certs\contact-sync.pfx' `
   -CertificatePasswordPath 'C:\Certs\contact-sync-password.cred' `
-  -FolderName 'Company Contacts' `
+  -FolderName 'Directory Contacts' `
   -MailboxList 'person@contoso.com' `
   -DatabasePath 'C:\ContactSync\GraphContactSync.db' `
   -LogPath 'C:\ContactSync\Logs'
@@ -77,6 +77,13 @@ are removed from the managed folder.
 Graph write calls are sent as batches of up to 20 operations. The script honors
 `Retry-After` for throttled and transient batch responses. Adjust the batch size
 with `-BatchSize` (1–20) only if your tenant needs a lower rate.
+
+Contact IDs are requested in Microsoft Graph's immutable-ID format so moving a
+contact within the same mailbox does not invalidate its cached ID. If Graph
+still returns `404` for a cached contact during an update or deletion, the
+script rescans that mailbox's managed folder and retries once. The rescan
+matches contacts by normalized email address and also accounts for any other
+operations that already succeeded in the same Graph batch.
 
 For scheduled runs, use an explicit `-MailboxList` or a CSV file:
 
@@ -112,6 +119,7 @@ Microsoft documents the contact API and its required application permission in
 ## Versioning
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
+
 
 ## Authors
 

@@ -6,21 +6,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
-## [5.0.1] - 07/18/2023
+## [6.0.5]
+## Fixed
+- Request immutable Microsoft Graph IDs for Outlook contacts so cached IDs
+  remain valid when contacts move within a mailbox.
+- Rescan and retry a mailbox once when a cached contact ID returns `404` during
+  an update or deletion.
+- Aggregate multiple stale contact IDs from one Graph batch into a single
+  mailbox reconciliation warning.
+- Include the affected contact, Graph error codes, request IDs, and timestamp in
+  batch-operation failure logs so mailbox-specific errors can be diagnosed.
+- Add the same Graph diagnostics and mailbox-stage context to direct failures
+  that occur while locating or creating a managed contact folder.
+
+## [6.0.4]
+- Added contact deduplication within the folder. This runs every time the cache is rebuilt.
+
+## [6.0.3]
+## Changed
+- Save only changed mailbox-contact mappings after a successful Graph sync, rather than deleting and re-inserting the whole mailbox map.
+
+## [6.0.2]
+## Changed
+- Store only Microsoft Entra contacts returned by a normal Graph delta query, rather than rewriting every cached source contact on every run.
+- Skip source-cache writes entirely when the Graph delta query contains no changes.
+- Removed a duplicate SQLite query when loading a mailbox's contact map.
+
+## [6.0.1]
+## Fixed
+- Made SQLite insert/update statements compatible with older PSSQLite SQLite engines.
+
+## [6.0.0]
+## Changed
+- Replaced JSON sync state with SQLite source, mailbox, and mailbox-contact tables.
+
+## [5.1.8]
 ## Added
-- Added FullDirectoryRefreshDays cache expiration to allow a full directory rebuild every month or so. This will re-add accidently deleted or duplciated contacts -- but takes much longer to run.
+- SQLite database initializer and documented schema for large sync deployments.
 
+## [5.1.7]
 ## Changed
-- Fixed backwards compatabilty with EWS by switching to Graph Beta. This way, graph is able to see the folder that EWS created in the past. Before, it would make a duplicate folder with the same name.
-- Improved "DIRECTORY" mode performance
+- Added beginner-friendly inline comments throughout the Graph sync script.
 
-## [5.0.0] - 07/18/2023
+## [5.1.6]
+## Fixed
+- Correctly extract existing contact email addresses from Graph PowerShell
+  response objects.
+
+## [5.1.5]
+## Fixed
+- Rebuild the directory cache when contact-filter switches change, ensuring the
+  switches apply to existing state as well as first-time runs.
+
+## [5.1.4]
+## Fixed
+- Allow runs without `-LogPath` when PowerShell strict mode is enabled.
+
+## [5.1.3]
+## Fixed
+- Treat omitted Graph fields, including empty phone fields, as null instead of
+  failing when strict mode is enabled.
+
+## [5.1.2]
+## Fixed
+- Safely handle optional Microsoft Graph delta, paging, and retry properties
+  when PowerShell strict mode is enabled.
+
+## [5.1.0]
+## Added
+- Persistent Graph delta state, contact fingerprints, and mailbox contact ID caches.
+- CSV-based mailbox recipients and configurable Graph JSON batch size.
 ## Changed
-- !!! Major upgrade from EWS to Graph API, please see new README.md
-- Replaced Exchange Web Services, the bundled EWS module, and Exchange Online
-- Remote PowerShell with Microsoft Graph.
 - Writes are now batched and retried using Graph `Retry-After` guidance.
 - Subsequent runs skip unchanged contacts and avoid full target-folder scans.
+
+## [5.0.0]
+## Changed
+- Replaced Exchange Web Services, the bundled EWS module, and Exchange Online
+  Remote PowerShell with Microsoft Graph.
+- Added certificate-based app-only Graph authentication using the Microsoft
+  Graph PowerShell SDK.
+## Changed
+- Converted the multi-threaded entry point into a compatibility wrapper; Graph
+  throttling is handled by a sequential mailbox sync.
 
 ## [4.0.0] - 07/18/2023
 ## Changed
