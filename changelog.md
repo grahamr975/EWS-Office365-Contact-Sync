@@ -6,6 +6,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [6.0.7] - 2026-09-21
+### Fixed
+- Address DIRECTORY-mode Graph requests using cached Entra user object IDs,
+  preserving email-based database mappings and logs. Exclude organizational
+  contacts from mailbox targets and reject ambiguous target email addresses.
+- Include available Graph error codes, request IDs, HTTP status, and request URL
+  in mailbox-level failures, including errors outside individual batch responses.
+
+## [6.0.6] - 2026-09-10
+### Added
+- Automatically create a `MailboxHealth` table in existing databases to track
+  reconciliation state, last success, error codes, and consecutive failures.
+- Prevent overlapping sync runs against the same database with a process-held
+  file lock.
+- Add offline regression checks using mocked Graph responses and a temporary
+  SQLite database.
+
+### Fixed
+- Save confirmed successful operations after each batch even when other
+  operations in that batch fail, reducing duplicate creates on subsequent runs.
+- Rescan failed or interrupted mailboxes before retrying, and avoid blindly
+  retrying contact creates that return an ambiguous server error.
+- Treat missing batch responses as failures requiring reconciliation.
+- Rebuild contact mappings when the managed folder changes and track periodic
+  reconciliation separately for each mailbox.
+- Rediscover a cached folder only after HTTP `404`, and reset a saved directory
+  delta token only after HTTP `410`.
+- Clear Outlook phone fields when their directory values are removed.
+- Convert log timestamps to UTC before formatting them with a `Z` suffix.
+- Return a nonzero exit code for mailbox failures and propagate it through both
+  launcher scripts; resolve the sync script relative to the launcher's location.
+
+### Changed
+- Require a matching managed category and an existing canonical contact before
+  deleting a contact from a duplicate folder. Preserve unique or untagged
+  contacts and their folders for manual review.
+- Rescan each target mailbox once after upgrading to establish recovery state;
+  no manual database migration or reset is required.
+
 ## [6.0.5]
 ## Fixed
 - Request immutable Microsoft Graph IDs for Outlook contacts so cached IDs
