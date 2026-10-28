@@ -4,7 +4,7 @@ Synchronize Microsoft Entra directory contacts into a dedicated Outlook contact
 folder for one or more Exchange Online mailboxes. This is a Microsoft Graph-only
 rewrite of the former EWS sync script.
 
-After the first sync, uses SQL Lite to cache the contact state of each mailbox. This way, the script won't have to re-read each's mailboxes contact list on future runs. This caching significantly improves the sync run-time after the first run.
+After the first sync, uses SQL Lite to cache the contact state of each mailbox. This way, the script won't have to re-read each's mailboxes contact list on future runs. This caching significantly improves the sync run-time after the first run. After caching, 2,000 contacts x 2,000 mailboxes will sync in 1-2 hours.
 
 **Why would I want to use this?** iPhone/Android devices don't currently support offline Global Address List synchronization. By loading the Global Address List contacts into a folder within user's mailbox, you can circumvent this limitation.
 
