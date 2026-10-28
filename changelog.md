@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (To do list)
 
+## [6.0.8] - 2026-10-28
+### Fixed
+- Fixed issue where the ExcludeContactsWithoutPhoneNumber parameter would not hide contacts missing a phone number
+- Fixed issue where the script would fail when trying to use MailboxCsvPath instead of MailboxList.
 ## [6.0.7] - 2026-09-21
 ### Fixed
 - Address DIRECTORY-mode Graph requests using cached Entra user object IDs,

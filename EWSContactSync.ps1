@@ -45,6 +45,9 @@ param (
 Set-StrictMode -Version Latest
 # Stop immediately for unexpected PowerShell errors; mailbox-level errors are handled later.
 $ErrorActionPreference = 'Stop'
+# Filter through the pipeline so a null typed array becomes an empty array.
+# @($MailboxList) alone contains one null item when MailboxList was omitted.
+$MailboxList = @($MailboxList | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 # A caller must choose exactly one way to identify target mailboxes.
 if ((@($MailboxList).Count -eq 0) -and (-not $MailboxCsvPath)) { throw 'Specify -MailboxList or -MailboxCsvPath.' }
 if ((@($MailboxList).Count -gt 0) -and $MailboxCsvPath) { throw 'Use either -MailboxList or -MailboxCsvPath, not both.' }
@@ -249,21 +252,43 @@ function New-ContactModel {
         # Entra organizational contacts keep all phones in a typed phones array.
         $phones = @(Get-OptionalProperty -Object $Object -Name 'phones')
         $business = @($phones | Where-Object { $_.type -match 'business' } | ForEach-Object { $_.number })
-        $mobile = ($phones | Where-Object { $_.type -eq 'mobile' } | Select-Object -First 1).number
+        $mobileEntry = $phones | Where-Object { $_.type -eq 'mobile' } | Select-Object -First 1
+        $mobile = Get-OptionalProperty $mobileEntry 'number'
     } else {
         # Entra users expose business phones and mobile phone as separate fields.
         $business = @(Get-OptionalProperty -Object $Object -Name 'businessPhones')
         $mobile = Get-OptionalProperty -Object $Object -Name 'mobilePhone'
     }
+    $firstName = Get-OptionalProperty $Object 'givenName'
+    $lastName = Get-OptionalProperty $Object 'surname'
+    $displayName = Get-OptionalProperty $Object 'displayName'
+    if ([string]::IsNullOrWhiteSpace($displayName)) {
+        $displayName = (@($firstName, $lastName) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ' '
+        if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = Get-OptionalProperty $Object 'mail' }
+    }
+    # Mobile clients can compose a name from givenName/surname instead of using
+    # displayName, falling back to companyName when both personal fields are empty.
+    # Keep the full directory label intact rather than guessing how to split names.
+    # Organizational contacts may intentionally represent companies, so leave them alone.
+    if (-not $OrganizationContact -and [string]::IsNullOrWhiteSpace($firstName) -and [string]::IsNullOrWhiteSpace($lastName)) {
+        $firstName = $displayName
+    }
     # Keep only the values that this sync manages; personal Outlook fields are untouched.
     $contact = [pscustomobject]@{
-        SourceId = $SourceId; DisplayName = Get-OptionalProperty $Object 'displayName'; FirstName = Get-OptionalProperty $Object 'givenName'; LastName = Get-OptionalProperty $Object 'surname'
+        SourceId = $SourceId; DisplayName = $displayName; FirstName = $firstName; LastName = $lastName
         Email = Get-OptionalProperty $Object 'mail'; JobTitle = Get-OptionalProperty $Object 'jobTitle'; CompanyName = Get-OptionalProperty $Object 'companyName'; Department = Get-OptionalProperty $Object 'department'
         BusinessPhones = @($business); MobilePhone = $mobile
     }
     # Save the computed hash on the model so callers do not recalculate it.
     $contact | Add-Member -NotePropertyName Fingerprint -NotePropertyValue (Get-ContactFingerprint $contact)
     $contact
+}
+
+function Test-ContactHasPhone {
+    # An array entry counts only when it contains a nonblank phone value.
+    param($Contact)
+    $businessPhoneCount = @($Contact.BusinessPhones | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count
+    $businessPhoneCount -gt 0 -or -not [string]::IsNullOrWhiteSpace([string]$Contact.MobilePhone)
 }
 
 function Test-EligibleUser {
@@ -273,7 +298,7 @@ function Test-EligibleUser {
     if ((Get-OptionalProperty $User 'accountEnabled') -ne $true -or (Get-OptionalProperty $User 'userType') -ne 'Member' -or [string]::IsNullOrWhiteSpace((Get-OptionalProperty $User 'mail'))) { return $false }
     if ($ExcludeSharedMailboxContacts -and @(Get-OptionalProperty $User 'assignedLicenses').Count -eq 0) { return $false }
     $model = New-ContactModel -Object $User -SourceId (Get-OptionalProperty $User 'id')
-    if ($ExcludeContactsWithoutPhoneNumber -and @($model.BusinessPhones).Count -eq 0 -and [string]::IsNullOrWhiteSpace($model.MobilePhone)) { return $false }
+    if ($ExcludeContactsWithoutPhoneNumber -and -not (Test-ContactHasPhone $model)) { return $false }
     $true
 }
 
@@ -281,8 +306,12 @@ function Get-FilterSignature {
     # Save the selected source filters in state. If they change between runs, the
     # cached source list is no longer valid and must be rebuilt.
     @(
-        "ExcludeContactsWithoutPhoneNumber=$($ExcludeContactsWithoutPhoneNumber.IsPresent)",
-        "ExcludeSharedMailboxContacts=$($ExcludeSharedMailboxContacts.IsPresent)",
+        # Rebuild old source models and rescan mailboxes once after this mapping change.
+        'ContactNameMapping=2'
+        # Re-evaluate unchanged cached users when the stricter phone filter is enabled.
+        if ($ExcludeContactsWithoutPhoneNumber) { 'PhoneFilter=2' }
+        "ExcludeContactsWithoutPhoneNumber=$($ExcludeContactsWithoutPhoneNumber.IsPresent)"
+        "ExcludeSharedMailboxContacts=$($ExcludeSharedMailboxContacts.IsPresent)"
         "IncludeNonUserContacts=$($IncludeNonUserContacts.IsPresent)"
     ) -join ';'
 }
@@ -443,7 +472,7 @@ function Get-SourceState {
         foreach ($org in $orgContacts) {
             if ($org.mail) {
                 $model = New-ContactModel -Object $org -SourceId "org:$($org.id)" -OrganizationContact
-                if (-not $ExcludeContactsWithoutPhoneNumber -or @($model.BusinessPhones).Count -gt 0 -or $model.MobilePhone) { $byId[$model.SourceId] = $model }
+                if (-not $ExcludeContactsWithoutPhoneNumber -or (Test-ContactHasPhone $model)) { $byId[$model.SourceId] = $model }
             }
         }
     }

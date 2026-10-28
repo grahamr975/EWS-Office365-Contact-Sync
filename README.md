@@ -60,6 +60,12 @@ folder as the target.
   -LogPath 'C:\ContactSync\Logs'
 ```
 
+When starting the script interactively, supply `-MailboxList 'person@contoso.com'`
+or `-MailboxCsvPath 'C:\ContactSync\Mailboxes.csv'` on the command line. PowerShell
+prompts for mandatory parameters through `FolderName`, but does not prompt for
+either mailbox-selection parameter. Omitting both produces
+`Specify -MailboxList or -MailboxCsvPath.`
+
 ## Performance and state
 
 The first run reads the directory and each managed contact folder. It saves
@@ -73,6 +79,26 @@ Changing any source filter (`-ExcludeSharedMailboxContacts`,
 `-ExcludeContactsWithoutPhoneNumber`, or `-IncludeNonUserContacts`) automatically
 rebuilds the source cache on the next run. Contacts excluded by the new filter
 are removed from the managed folder.
+
+`-ExcludeContactsWithoutPhoneNumber` requires at least one nonblank business or
+mobile phone value. Null, empty, and whitespace-only values do not count, for
+either directory users or organizational contacts. The first run after this
+phone-filter update rebuilds the source cache when the switch is enabled, so
+previously included contacts without phone values are removed from the managed
+folder without resetting the database.
+
+For directory users whose first and last names are both empty, the sync puts the
+full directory display name in the contact's first-name field. This gives mobile
+clients a personal name to display while retaining the company field. Existing
+first or last names are preserved; organizational contacts remain company-only
+when their source has no personal name. If the directory display name is empty,
+the sync uses the available first/last name, then the email address.
+
+The first run after this name-mapping update automatically rebuilds the directory
+cache and rescans managed mailbox folders, updating affected contacts without a
+database reset. Allow the phone to sync afterward. If a contact already has
+correct first/last names in Outlook but still shows a company on the phone,
+check for linked or duplicate phone contacts and stale device contact data.
 
 Graph write calls are sent as batches of up to 20 operations. The script honors
 `Retry-After` for throttled and transient batch responses. Adjust the batch size
@@ -111,6 +137,42 @@ Optional switches retained from the EWS version:
 `Multi-Threaded.ps1` was removed as an option due to graph-API throttling limits. EWS was a bit more forgiving.
 
 ## Graph API Documentation
+
+In `DIRECTORY` mode, Graph requests use the cached Entra user object ID, so a
+user's email address does not need to match their sign-in name. Existing SQLite
+mailbox keys and log labels remain email addresses. Organizational contacts are
+source contacts only, not target mailboxes. Explicit `MailboxList` and
+`MailboxCsvPath` targets should use Entra object IDs or user principal names.
+
+### Recovery and run status
+
+The script automatically adds a `MailboxHealth` table to existing databases; no
+database reset is required. On the first run after this upgrade, each target
+mailbox is rescanned to establish its recovery state, so that run can take longer.
+Later runs rescan mailboxes after failures or interruptions, when their folder
+changes, or when their individual reconciliation interval expires.
+
+Successful Graph operations are saved after each batch, even if another operation
+fails. An uncertain contact creation is reconciled before a later attempt rather
+than blindly retried. Cleared directory phone numbers now clear the corresponding
+Outlook fields.
+
+Duplicate-folder cleanup requires a contact category matching `FolderName` and a
+matching email already present in the canonical folder. Unique or untagged
+contacts are preserved with a warning; folders containing them remain for review.
+
+When `LogPath` is configured, each run writes a text log. Mailbox failure entries
+include consecutive failures and the last successful sync time. Log timestamps
+are UTC; recovery state remains stored in the database.
+
+The script exits with code `1` when any mailbox fails and `0` after a successful
+run. Unexpected terminating errors also fail the process. A `.sync.lock` file
+beside the SQLite database prevents overlapping runs against that database; the
+operating system releases its lock when the process exits. The file itself stays
+in place and does not need to be deleted. Schedule the script in its own
+PowerShell process, and propagate its exit code if using a wrapper script.
+
+Offline regression checks are documented in [Tests/README.md](Tests/README.md).
 
 Microsoft documents the contact API and its required application permission in
 [Create contact](https://learn.microsoft.com/en-us/graph/api/user-post-contacts?view=graph-rest-1.0), and documents the optional organizational-contact source in
